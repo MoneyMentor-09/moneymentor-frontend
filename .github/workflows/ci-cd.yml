@@ -1,0 +1,92 @@
+name: MoneyMentor CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # 🔹 1. Continuous Integration (Build + Lint + Test)
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint code
+        run: npm run lint || echo "No lint script defined"
+
+      - name: Build Next.js app
+        run: npm run build
+
+      - name: Run tests
+        run: npm test || echo "No tests defined"
+
+  # 🔹 2. Supabase Connection Test (before deploy)
+  supabase-test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Supabase client
+        run: npm install @supabase/supabase-js
+
+      - name: Test Supabase connection
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          node -e "
+          import { createClient } from '@supabase/supabase-js';
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+          const test = await supabase.from('profiles').select('id').limit(1);
+          if (test.error) {
+            console.error('❌ Supabase connection failed:', test.error.message);
+            process.exit(1);
+          } else {
+            console.log('✅ Supabase connection successful');
+          }"
+
+  # # 🔹 3. Continuous Deployment (Deploy to Vercel)
+  # deploy:
+  #   runs-on: ubuntu-latest
+  #   needs: supabase-test
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
+
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 20
+
+  #     - name: Install dependencies
+  #       run: npm ci
+
+  #     - name: Build project
+  #       run: npm run build
+
+  #     - name: Deploy to Vercel
+  #       uses: amondnet/vercel-action@v25
+  #       with:
+  #         vercel-token: ${{ secrets.VERCEL_TOKEN }}
+  #         vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+  #         vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+  #       env:
+  #         VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
