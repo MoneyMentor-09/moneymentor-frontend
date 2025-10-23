@@ -17,7 +17,7 @@ import {
   ArrowDownRight,
   Target
 } from "lucide-react"
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts"
+import { PieChart, Pie, Cell, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Bar, BarChart, Legend } from "recharts"
 import Link from "next/link"
 
 interface Transaction {
@@ -120,24 +120,26 @@ export default function DashboardPage() {
     ? Math.round(alerts.reduce((sum, alert) => sum + alert.risk_score, 0) / alerts.length)
     : 0
 
-  // Previous month comparison (mock data for now)
+  // Previous month comparison (mock data)
   const previousMonthIncome = totalIncome * 0.9
   const previousMonthExpenses = totalExpenses * 1.1
   const incomeChange = ((totalIncome - previousMonthIncome) / previousMonthIncome) * 100
   const expenseChange = ((totalExpenses - previousMonthExpenses) / previousMonthExpenses) * 100
 
   // Prepare chart data
-  const expenseByCategory = transactions
-    .filter(t => t.type === 'expense')
-    .reduce((acc, t) => {
-      acc[t.category] = (acc[t.category] || 0) + t.amount
-      return acc
-    }, {} as Record<string, number>)
+const expenseByCategory = transactions
+  .filter(t => t.type === 'expense')
+  .reduce((acc, t) => {
+    const amount = Math.abs(t.amount) // ensure positive
+    acc[t.category] = (acc[t.category] || 0) + amount
+    return acc
+  }, {} as Record<string, number>)
 
-  const pieChartData = Object.entries(expenseByCategory).map(([category, amount]) => ({
-    name: category,
-    value: amount
-  }))
+const pieChartData = Object.entries(expenseByCategory).map(([category, value]) => ({
+  name: category,
+  value
+}))
+
 
   const monthlyData = transactions.reduce((acc, t) => {
     const month = new Date(t.date).toLocaleDateString('en-US', { month: 'short' })
@@ -254,7 +256,7 @@ export default function DashboardPage() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${totalIncome.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-green-600">${totalIncome.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">
                 {incomeChange >= 0 ? (
                   <span className="text-green-600 flex items-center">
@@ -277,7 +279,7 @@ export default function DashboardPage() {
               <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${totalExpenses.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-red-600">${totalExpenses.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">
                 {expenseChange <= 0 ? (
                   <span className="text-green-600 flex items-center">
@@ -323,61 +325,63 @@ export default function DashboardPage() {
               <CardDescription>Breakdown of your spending by category</CardDescription>
             </CardHeader>
             <CardContent>
-              {pieChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={pieChartData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      //label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {pieChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                  No expense data available
-                </div>
-              )}
-            </CardContent>
-          </Card>
+           {pieChartData.length > 0 ? (
+  <ResponsiveContainer width="100%" height={300}>
+    <PieChart>
+      <Pie
+        data={pieChartData}
+        dataKey="value"
+        nameKey="name"
+        cx="50%"
+        cy="50%"
+        outerRadius={100}
+        label={(entry: any) => {
+          const { name, percent } = entry as { name: string; value: number; percent: number }
+          return `${name} ${(percent * 100).toFixed(0)}%`
+        }}
+      >
+        {pieChartData.map((entry, index) => (
+          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+        ))}
+      </Pie>
+      <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
+    </PieChart>
+  </ResponsiveContainer>
+) : (
+  <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+    No expense data available
+  </div>
+)}</CardContent>
+</Card>
 
-          {/* Monthly Trends Line Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Monthly Trends</CardTitle>
-              <CardDescription>Income vs expenses over time</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {lineChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={lineChartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => [`$${value}`, '']} />
-                    <Line type="monotone" dataKey="income" stroke="#00C49F" strokeWidth={2} />
-                    <Line type="monotone" dataKey="expenses" stroke="#FF8042" strokeWidth={2} />
-                    <Line type="monotone" dataKey="balance" stroke="#0088FE" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                  No trend data available
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+{/* Monthly Trends Bar Chart */}
+<Card>
+  <CardHeader>
+    <CardTitle>Monthly Trends</CardTitle>
+    <CardDescription>Income vs expenses over time</CardDescription>
+  </CardHeader>
+  <CardContent>
+    {lineChartData.length > 0 ? (
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart data={lineChartData} barSize={35} barCategoryGap="10%">
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="month" />
+          <YAxis />
+          <Tooltip formatter={(value) => [`$${value}`, '']} />
+          <Legend />
+          <Bar dataKey="income" fill="#00C49F" name="Income" />
+          <Bar dataKey="expenses" fill="#FF8042" name="Expenses" />
+          <Bar dataKey="balance" fill="#0088FE" name="Balance" />
+        </BarChart>
+      </ResponsiveContainer>
+    ) : (
+      <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+        No trend data available
+      </div>
+    )}
+  </CardContent>
+</Card>
+</div>
 
         {/* Recent Transactions and Budget Progress */}
         <div className="grid gap-6 md:grid-cols-2">

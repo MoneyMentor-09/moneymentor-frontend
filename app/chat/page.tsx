@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { 
   MessageSquare, 
   Send, 
@@ -15,12 +14,10 @@ import {
   User, 
   Trash2,
   Loader2,
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
   AlertTriangle
 } from "lucide-react"
 import { toast } from "sonner"
+import { ScrollArea } from "@radix-ui/react-scroll-area"
 
 interface Message {
   id: string
@@ -47,18 +44,24 @@ export default function ChatPage() {
   const scrollAreaRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    const storedMessages = localStorage.getItem("chatMessages")
+    if (storedMessages) {
+      setMessages(JSON.parse(storedMessages).map((msg: any) => ({ ...msg, timestamp: new Date(msg.timestamp) })))
+    } else {
+      const welcomeMsg: Message = {
+        id: '1',
+        role: 'assistant',
+        content: "Hello! I'm your AI financial assistant. I can help you understand your spending patterns, analyze your budget, and provide personalized financial advice. What would you like to know about your finances?",
+        timestamp: new Date()
+      }
+      setMessages([welcomeMsg])
+    }
     fetchFinancialData()
-    // Add welcome message
-    setMessages([{
-      id: '1',
-      role: 'assistant',
-      content: "Hello! I'm your AI financial assistant. I can help you understand your spending patterns, analyze your budget, and provide personalized financial advice. What would you like to know about your finances?",
-      timestamp: new Date()
-    }])
   }, [])
 
   useEffect(() => {
-    // Scroll to bottom when new messages are added
+    localStorage.setItem("chatMessages", JSON.stringify(messages))
+    // Auto-scroll to bottom when new messages appear
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight
     }
@@ -68,23 +71,19 @@ export default function ChatPage() {
     try {
       const supabase = getSupabaseBrowserClient()
       const { data: { user } } = await supabase.auth.getUser()
-      
       if (!user) return
 
-      // Fetch transactions
       const { data: transactions } = await supabase
         .from('transactions')
         .select('*')
         .eq('user_id', user.id)
         .order('date', { ascending: false })
 
-      // Fetch budgets
       const { data: budgets } = await supabase
         .from('budgets')
         .select('*')
         .eq('user_id', user.id)
 
-      // Fetch alerts
       const { data: alerts } = await supabase
         .from('alerts')
         .select('*')
@@ -94,38 +93,38 @@ export default function ChatPage() {
 
       if (transactions) {
         const totalIncome = transactions
-          .filter(t => t.type === 'income')
-          .reduce((sum, t) => sum + t.amount, 0)
+          .filter((t: { type: string }) => t.type === 'income')
+          .reduce((sum: number, t: { amount: number }) => sum + (t.amount as number), 0)
 
         const totalExpenses = transactions
-          .filter(t => t.type === 'expense')
-          .reduce((sum, t) => sum + t.amount, 0)
+          .filter((t: { type: string }) => t.type === 'expense')
+          .reduce((sum: number, t: { amount: number }) => sum + (t.amount as number), 0)
 
         const totalBalance = totalIncome - totalExpenses
 
-        // Calculate top spending categories
         const categorySpending = transactions
-          .filter(t => t.type === 'expense')
-          .reduce((acc, t) => {
-            acc[t.category] = (acc[t.category] || 0) + t.amount
+          .filter((t: { type: string }) => t.type === 'expense')
+          .reduce((acc: Record<string, number>, t: { amount: number; category: string }) => {
+            const amt = t.amount as number
+            acc[t.category] = (acc[t.category] || 0) + amt
             return acc
-          }, {} as Record<string, number>)
+          }, {})
 
         const topCategories = Object.entries(categorySpending)
-          .map(([category, amount]) => ({ category, amount }))
+          .map(([category, amount]) => ({ category, amount: amount as number }))
           .sort((a, b) => b.amount - a.amount)
           .slice(0, 5)
 
-        const recentTransactions = transactions.slice(0, 5).map(t => ({
+        const recentTransactions = transactions.slice(0, 5).map((t: { description: any; amount: number; type: any }) => ({
           description: t.description,
-          amount: t.amount,
+          amount: t.amount as number,
           type: t.type
         }))
 
-        const budgetStatus = budgets?.map(budget => ({
+        const budgetStatus = budgets?.map((budget: { category: any; spent: number; limit: number }) => ({
           category: budget.category,
-          spent: budget.spent,
-          limit: budget.limit
+          spent: budget.spent as number,
+          limit: budget.limit as number
         })) || []
 
         setFinancialSummary({
@@ -138,6 +137,7 @@ export default function ChatPage() {
           alerts: alerts || []
         })
       }
+
     } catch (error) {
       console.error('Failed to fetch financial data:', error)
     }
@@ -161,21 +161,16 @@ export default function ChatPage() {
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: userMessage.content,
           financialSummary: financialSummary
         }),
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to get response')
-      }
+      if (!response.ok) throw new Error('Failed to get response')
 
       const data = await response.json()
-      
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -199,6 +194,7 @@ export default function ChatPage() {
   }
 
   const clearChat = () => {
+    localStorage.removeItem("chatMessages")
     setMessages([{
       id: '1',
       role: 'assistant',
@@ -220,7 +216,6 @@ export default function ChatPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold">AI Financial Assistant</h1>
@@ -245,73 +240,85 @@ export default function ChatPage() {
                   Ask questions about your financial data and get personalized insights
                 </CardDescription>
               </CardHeader>
-              <CardContent className="flex-1 flex flex-col">
-                <ScrollArea className="flex-1 pr-4" ref={scrollAreaRef}>
-                  <div className="space-y-4">
-                    {messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex gap-3 ${
-                          message.role === 'user' ? 'justify-end' : 'justify-start'
-                        }`}
-                      >
-                        {message.role === 'assistant' && (
-                          <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                            <Bot className="h-4 w-4 text-primary-foreground" />
-                          </div>
-                        )}
-                        <div
-                          className={`max-w-[80%] rounded-lg p-3 ${
-                            message.role === 'user'
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-muted'
-                          }`}
-                        >
-                          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                          <p className="text-xs opacity-70 mt-1">
-                            {message.timestamp.toLocaleTimeString()}
-                          </p>
-                        </div>
-                        {message.role === 'user' && (
-                          <div className="flex-shrink-0 w-8 h-8 bg-muted rounded-full flex items-center justify-center">
-                            <User className="h-4 w-4" />
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    {isLoading && (
-                      <div className="flex gap-3 justify-start">
-                        <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                          <Bot className="h-4 w-4 text-primary-foreground" />
-                        </div>
-                        <div className="bg-muted rounded-lg p-3">
-                          <div className="flex items-center gap-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span className="text-sm">AI is thinking...</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </ScrollArea>
-                
-                <form onSubmit={handleSendMessage} className="flex gap-2 mt-4">
-                  <Input
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder="Ask about your finances..."
-                    disabled={isLoading}
-                    className="flex-1"
-                  />
-                  <Button type="submit" disabled={isLoading || !input.trim()}>
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </form>
-              </CardContent>
+
+              {/* ✅ Updated layout: scrollable messages + fixed input */}
+              <CardContent className="flex flex-col flex-1 relative">
+  {/* Scrollable chat messages */}
+  <ScrollArea
+    className="flex-1 pr-4 overflow-y-auto"
+    ref={scrollAreaRef}
+    style={{ maxHeight: "500px" }}
+  >
+    <div className="space-y-4 pb-20"> {/* padding-bottom prevents overlap with input */}
+      {messages.map((message) => (
+        <div
+          key={message.id}
+          className={`flex gap-3 ${
+            message.role === "user" ? "justify-end" : "justify-start"
+          }`}
+        >
+          {message.role === "assistant" && (
+            <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+              <Bot className="h-4 w-4 text-primary-foreground" />
+            </div>
+          )}
+          <div
+            className={`max-w-[80%] rounded-lg p-3 ${
+              message.role === "user"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted"
+            }`}
+          >
+            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+            <p className="text-xs opacity-70 mt-1">
+              {message.timestamp.toLocaleTimeString()}
+            </p>
+          </div>
+          {message.role === "user" && (
+            <div className="flex-shrink-0 w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+              <User className="h-4 w-4" />
+            </div>
+          )}
+        </div>
+      ))}
+
+      {isLoading && (
+        <div className="flex gap-3 justify-start">
+          <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+            <Bot className="h-4 w-4 text-primary-foreground" />
+          </div>
+          <div className="bg-muted rounded-lg p-3">
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm">AI is thinking...</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  </ScrollArea>
+
+  {/* Fixed input bar */}
+  <form
+    onSubmit={handleSendMessage}
+    className="absolute bottom-0 left-0 w-full flex gap-2 p-4 bg-background border-t"
+  >
+    <Input
+      value={input}
+      onChange={(e) => setInput(e.target.value)}
+      placeholder="Ask about your finances..."
+      disabled={isLoading}
+      className="flex-1"
+    />
+    <Button type="submit" disabled={isLoading || !input.trim()}>
+      <Send className="h-4 w-4" />
+    </Button>
+  </form>
+</CardContent>
             </Card>
           </div>
 
-          {/* Financial Summary Sidebar */}
+          {/* Sidebar unchanged */}
           <div className="space-y-6">
             {/* Quick Stats */}
             <Card>
@@ -350,9 +357,7 @@ export default function ChatPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Suggested Questions</CardTitle>
-                <CardDescription>
-                  Click to ask the AI assistant
-                </CardDescription>
+                <CardDescription>Click to ask the AI assistant</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">

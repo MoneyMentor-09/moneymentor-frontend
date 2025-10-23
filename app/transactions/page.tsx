@@ -34,7 +34,7 @@ interface Transaction {
   description: string
   category: string
   type: 'income' | 'expense'
-    amount: number
+  amount: number
   created_at: string
 }
 
@@ -74,6 +74,7 @@ export default function TransactionsPage() {
     type: "expense" as "income" | "expense",
     amount: ""
   })
+  const [selectedTransactions, setSelectedTransactions] = useState<string[]>([])
 
   useEffect(() => {
     fetchTransactions()
@@ -94,6 +95,7 @@ export default function TransactionsPage() {
 
       if (error) throw error
       setTransactions(data || [])
+      setSelectedTransactions([])
     } catch (error) {
       toast.error("Failed to fetch transactions")
       console.error(error)
@@ -121,7 +123,6 @@ export default function TransactionsPage() {
       }
 
       if (editingTransaction) {
-        // Update existing transaction
         const { error } = await supabase
           .from('transactions')
           .update(transactionData)
@@ -130,7 +131,6 @@ export default function TransactionsPage() {
         if (error) throw error
         toast.success("Transaction updated successfully")
       } else {
-        // Create new transaction
         const { error } = await supabase
           .from('transactions')
           .insert(transactionData)
@@ -139,7 +139,6 @@ export default function TransactionsPage() {
         toast.success("Transaction added successfully")
       }
 
-      // Reset form and close dialog
       setForm({
         date: new Date().toISOString().split('T')[0],
         description: "",
@@ -186,6 +185,45 @@ export default function TransactionsPage() {
     }
   }
 
+  const handleDeleteSelected = async () => {
+    if (selectedTransactions.length === 0) return
+    try {
+      const supabase = getSupabaseBrowserClient()
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .in('id', selectedTransactions)
+
+      if (error) throw error
+      toast.success("Selected transactions deleted successfully")
+      fetchTransactions()
+    } catch (error) {
+      toast.error("Failed to delete selected transactions")
+      console.error(error)
+    }
+  }
+
+  const handleDeleteAll = async () => {
+    if (transactions.length === 0) return
+    try {
+      const supabase = getSupabaseBrowserClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('user_id', user.id)
+
+      if (error) throw error
+      toast.success("All transactions deleted successfully")
+      fetchTransactions()
+    } catch (error) {
+      toast.error("Failed to delete all transactions")
+      console.error(error)
+    }
+  }
+
   const handleExport = () => {
     const csvContent = [
       ['Date', 'Description', 'Category', 'Type', 'Amount'],
@@ -207,7 +245,6 @@ export default function TransactionsPage() {
     window.URL.revokeObjectURL(url)
   }
 
-  // Filter transactions
   const filteredTransactions = transactions.filter(transaction => {
     const matchesSearch = transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          transaction.category.toLowerCase().includes(searchTerm.toLowerCase())
@@ -228,7 +265,7 @@ export default function TransactionsPage() {
             </div>
           </div>
           <div className="h-96 bg-muted rounded-lg animate-pulse" />
-      </div>
+        </div>
       </DashboardLayout>
     )
   }
@@ -236,7 +273,7 @@ export default function TransactionsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-      {/* Header */}
+        {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold">Transactions</h1>
@@ -246,7 +283,7 @@ export default function TransactionsPage() {
             <Button variant="outline" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
               Export CSV
-              </Button>
+            </Button>
             <Button variant="outline" onClick={() => setIsUploadDialogOpen(true)}>
               <Upload className="h-4 w-4 mr-2" />
               Upload CSV
@@ -355,14 +392,14 @@ export default function TransactionsPage() {
                 <Label htmlFor="search">Search</Label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
+                  <Input
                     id="search"
-              placeholder="Search transactions..."
+                    placeholder="Search transactions..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+                    className="pl-10"
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="type-filter">Type</Label>
@@ -397,19 +434,76 @@ export default function TransactionsPage() {
                 <Label>Results</Label>
                 <div className="flex items-center h-10 px-3 py-2 text-sm text-muted-foreground bg-muted rounded-md">
                   {filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? 's' : ''}
-        </div>
+                </div>
               </div>
             </div>
-            </CardContent>
-          </Card>
+          </CardContent>
+        </Card>
 
         {/* Transactions Table */}
         <Card>
-          <CardHeader>
-            <CardTitle>Transaction History</CardTitle>
-            <CardDescription>
-              View and manage all your financial transactions
-            </CardDescription>
+          <CardHeader className="flex items-center justify-between">
+            <div>
+              <CardTitle>Transaction History</CardTitle>
+              <CardDescription>
+                View and manage all your financial transactions
+              </CardDescription>
+            </div>
+            {transactions.length > 0 && (
+              <div className="flex gap-2">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" disabled={selectedTransactions.length === 0}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Selected
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Selected Transactions</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete {selectedTransactions.length} selected transaction{selectedTransactions.length !== 1 ? 's' : ''}? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDeleteSelected}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" disabled={transactions.length === 0}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete All
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete All Transactions</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete all transactions? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDeleteAll}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete All
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
           </CardHeader>
           <CardContent>
             {filteredTransactions.length === 0 ? (
@@ -440,6 +534,19 @@ export default function TransactionsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>
+                        <input 
+                          type="checkbox"
+                          checked={selectedTransactions.length === transactions.length && transactions.length > 0}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedTransactions(transactions.map(t => t.id))
+                            } else {
+                              setSelectedTransactions([])
+                            }
+                          }}
+                        />
+                      </TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Description</TableHead>
                       <TableHead>Category</TableHead>
@@ -452,14 +559,25 @@ export default function TransactionsPage() {
                     {filteredTransactions.map((transaction) => (
                       <TableRow key={transaction.id}>
                         <TableCell>
+                          <input 
+                            type="checkbox"
+                            checked={selectedTransactions.includes(transaction.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedTransactions(prev => [...prev, transaction.id])
+                              } else {
+                                setSelectedTransactions(prev => prev.filter(id => id !== transaction.id))
+                              }
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell>
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-muted-foreground" />
                             {new Date(transaction.date).toLocaleDateString()}
                           </div>
                         </TableCell>
-                        <TableCell className="font-medium">
-                          {transaction.description}
-                        </TableCell>
+                        <TableCell className="font-medium">{transaction.description}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Tag className="h-4 w-4 text-muted-foreground" />
@@ -473,9 +591,7 @@ export default function TransactionsPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className={`font-medium ${
-                            transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
-                          }`}>
+                          <span className={`font-medium ${transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
                             {transaction.amount < 0 ? '-' : '+'}${Math.abs(transaction.amount).toLocaleString()}
                           </span>
                         </TableCell>
@@ -612,7 +728,7 @@ export default function TransactionsPage() {
           onOpenChange={setIsUploadDialogOpen}
           onSuccess={fetchTransactions}
         />
-    </div>
+      </div>
     </DashboardLayout>
   )
 }
