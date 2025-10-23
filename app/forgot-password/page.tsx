@@ -28,32 +28,25 @@ export default function ForgotPasswordPage() {
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/auth/forgot-password", {
+      const res = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       })
 
-      let result
-      try {
-        result = await response.json()
-      } catch {
-        throw new Error("Invalid server response")
-      }
+      const data = await res.json()
 
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to send reset link. Please try again.")
-      }
+      if (!res.ok) throw new Error(data.error || "Failed to send reset link")
 
       setIsSubmitted(true)
       toast({
         title: "Reset link sent",
-        description: "Check your email for the password reset link.",
+        description: "Check your email for password reset instructions.",
       })
-    } catch (error: any) {
+    } catch (err: any) {
       toast({
         title: "Error",
-        description: error.message || "Something went wrong.",
+        description: err.message || "Something went wrong.",
         variant: "destructive",
       })
     } finally {
@@ -66,21 +59,21 @@ export default function ForgotPasswordPage() {
       <FloatingBackground />
 
       <Card className="relative z-10 w-full max-w-md shadow-xl">
-        <CardHeader className="space-y-1 text-center">
+        <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-xl">
             M
           </div>
           <CardTitle className="text-2xl font-bold">Reset your password</CardTitle>
           <CardDescription>
             {isSubmitted
-              ? "Check your email for a reset link"
-              : "Enter your email to receive a password reset link"}
+              ? "Check your email for the reset link."
+              : "Enter your email to receive a reset link."}
           </CardDescription>
         </CardHeader>
 
         {!isSubmitted ? (
           <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
@@ -91,14 +84,14 @@ export default function ForgotPasswordPage() {
                     placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-15"
+                    className="pl-10"
                     required
                   />
                 </div>
               </div>
             </CardContent>
 
-            <CardFooter className="flex flex-col gap-4">
+            <CardFooter className="flex flex-col gap-4 mt-4">
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <>
@@ -112,7 +105,7 @@ export default function ForgotPasswordPage() {
 
               <Link
                 href="/login"
-                className="flex items-center justify-center gap-8 text-sm text-muted-foreground hover:text-foreground"
+                className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back to login
@@ -124,8 +117,7 @@ export default function ForgotPasswordPage() {
             <CardContent>
               <div className="rounded-lg bg-primary/10 p-4 text-center">
                 <p className="text-sm text-foreground">
-                  We've sent a password reset link to <strong>{email}</strong>. Please check your inbox and follow
-                  the instructions.
+                  We’ve sent a reset link to <strong>{email}</strong>. Please check your inbox.
                 </p>
               </div>
             </CardContent>
