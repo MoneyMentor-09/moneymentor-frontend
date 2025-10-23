@@ -1,0 +1,293 @@
+"use client"
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Pencil, Save, X } from "lucide-react"
+
+interface TeamMember {
+  id: number
+  name: string
+  role: string
+  bio: string
+}
+
+interface AboutContent {
+  title: string
+  subtitle: string
+  mission: string
+  vision: string
+  teamMembers: TeamMember[]
+}
+
+export default function AboutPage() {
+  const [isEditing, setIsEditing] = useState(false)
+  const [content, setContent] = useState<AboutContent>({
+    title: "About MoneyMentor",
+    subtitle: "Empowering Your Financial Future",
+    mission:
+      "Our mission is to provide accessible, personalized financial guidance to help individuals make informed decisions about their money. We believe everyone deserves the tools and knowledge to achieve financial wellness.",
+    vision:
+      "We envision a world where financial literacy is universal, and everyone has the confidence to manage their finances effectively, plan for the future, and achieve their financial goals.",
+    teamMembers: [
+      {
+        id: 1,
+        name: "Amrinder Singh",
+        role: "Scrum Master",
+        bio: "Placeholder text",
+      },
+      {
+        id: 2,
+        name: "Samuel Sexton",
+        role: "Backend",
+        bio: "Placeholder text",
+      },
+      {
+        id: 3,
+        name: "Enzo Vitale",
+        role: "Frontend",
+        bio: "Placeholder text",
+      },
+      {
+        id: 2,
+        name: "William Okogwu",
+        role: "Bug tester and Backend",
+        bio: "Placeholder text",
+      },
+      {
+        id: 2,
+        name: "Bryson Braumeister",
+        role: "Backend",
+        bio: "Placeholder text",
+      },
+    ],
+  })
+
+  const [editedContent, setEditedContent] = useState<AboutContent>(content)
+
+  const handleEdit = () => {
+    setEditedContent(content)
+    setIsEditing(true)
+  }
+
+  const handleSave = () => {
+    setContent(editedContent)
+    setIsEditing(false)
+  }
+
+  const handleCancel = () => {
+    setEditedContent(content)
+    setIsEditing(false)
+  }
+
+  const updateTeamMember = (id: number, field: keyof TeamMember, value: string) => {
+    setEditedContent({
+      ...editedContent,
+      teamMembers: editedContent.teamMembers.map((member) =>
+        member.id === id ? { ...member, [field]: value } : member,
+      ),
+    })
+  }
+
+  const addTeamMember = () => {
+    const newId = Math.max(...editedContent.teamMembers.map((m) => m.id), 0) + 1
+    setEditedContent({
+      ...editedContent,
+      teamMembers: [
+        ...editedContent.teamMembers,
+        { id: newId, name: "New Team Member", role: "Role", bio: "Bio description" },
+      ],
+    })
+  }
+
+  const removeTeamMember = (id: number) => {
+    setEditedContent({
+      ...editedContent,
+      teamMembers: editedContent.teamMembers.filter((member) => member.id !== id),
+    })
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-12 max-w-6xl">
+        {/* Header with Edit Controls */}
+        <div className="flex justify-between items-start mb-8">
+          <div className="flex-1">
+            {isEditing ? (
+              <div className="space-y-4">
+                <Input
+                  value={editedContent.title}
+                  onChange={(e) => setEditedContent({ ...editedContent, title: e.target.value })}
+                  className="text-4xl font-bold"
+                />
+                <Input
+                  value={editedContent.subtitle}
+                  onChange={(e) => setEditedContent({ ...editedContent, subtitle: e.target.value })}
+                  className="text-xl"
+                />
+              </div>
+            ) : (
+              <>
+                <h1 className="text-4xl font-bold text-foreground mb-2">{content.title}</h1>
+                <p className="text-xl text-muted-foreground">{content.subtitle}</p>
+              </>
+            )}
+          </div>
+          <div className="flex gap-2 ml-4">
+            {!isEditing ? (
+              <Button onClick={handleEdit} variant="outline" size="sm">
+                <Pencil className="w-4 h-4 mr-2" />
+                Edit Page
+              </Button>
+            ) : (
+              <>
+                <Button onClick={handleSave} size="sm">
+                  <Save className="w-4 h-4 mr-2" />
+                  Save
+                </Button>
+                <Button onClick={handleCancel} variant="outline" size="sm">
+                  <X className="w-4 h-4 mr-2" />
+                  Cancel
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Mission & Vision Section */}
+        <div className="grid md:grid-cols-2 gap-6 mb-12">
+          <Card>
+            <CardHeader>
+              <CardTitle>Our Mission</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isEditing ? (
+                <Textarea
+                  value={editedContent.mission}
+                  onChange={(e) => setEditedContent({ ...editedContent, mission: e.target.value })}
+                  rows={6}
+                  className="resize-none"
+                />
+              ) : (
+                <p className="text-muted-foreground leading-relaxed">{content.mission}</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Our Vision</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isEditing ? (
+                <Textarea
+                  value={editedContent.vision}
+                  onChange={(e) => setEditedContent({ ...editedContent, vision: e.target.value })}
+                  rows={6}
+                  className="resize-none"
+                />
+              ) : (
+                <p className="text-muted-foreground leading-relaxed">{content.vision}</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Team Section */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-3xl font-bold text-foreground">Meet Our Team</h2>
+            {isEditing && (
+              <Button onClick={addTeamMember} variant="outline" size="sm">
+                Add Team Member
+              </Button>
+            )}
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {(isEditing ? editedContent.teamMembers : content.teamMembers).map((member) => (
+              <Card key={member.id} className="relative">
+                {isEditing && (
+                  <Button
+                    onClick={() => removeTeamMember(member.id)}
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 h-8 w-8"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
+                <CardHeader>
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <Input
+                        value={member.name}
+                        onChange={(e) => updateTeamMember(member.id, "name", e.target.value)}
+                        placeholder="Name"
+                      />
+                      <Input
+                        value={member.role}
+                        onChange={(e) => updateTeamMember(member.id, "role", e.target.value)}
+                        placeholder="Role"
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <CardTitle>{member.name}</CardTitle>
+                      <CardDescription>{member.role}</CardDescription>
+                    </>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  {isEditing ? (
+                    <Textarea
+                      value={member.bio}
+                      onChange={(e) => updateTeamMember(member.id, "bio", e.target.value)}
+                      rows={4}
+                      className="resize-none"
+                      placeholder="Bio"
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground leading-relaxed">{member.bio}</p>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Values Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Our Values</CardTitle>
+            <CardDescription>The principles that guide everything we do</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-3 gap-6">
+              <div>
+                <h3 className="font-semibold text-lg mb-2">Transparency</h3>
+                <p className="text-sm text-muted-foreground">
+                  We believe in clear, honest communication about finances without hidden fees or confusing jargon.
+                </p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg mb-2">Accessibility</h3>
+                <p className="text-sm text-muted-foreground">
+                  Financial guidance should be available to everyone, regardless of their current financial situation.
+                </p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg mb-2">Empowerment</h3>
+                <p className="text-sm text-muted-foreground">
+                  We provide the tools and knowledge you need to take control of your financial future.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
