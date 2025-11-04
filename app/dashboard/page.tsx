@@ -474,6 +474,13 @@ const pieChartData = Object.entries(expenseByCategory).map(([category, value]) =
           </Card>
         </div>
 
+
+        //added by enzo, trying to add accessibility button
+        import { AccessibilityButton } from "@/components/accessibility-button"
+
+// Then in sidebar JSX:
+<AccessibilityButton />
+        
         {/* Fraud Risk Summary */}
         {alerts.length > 0 && (
           <Card>
