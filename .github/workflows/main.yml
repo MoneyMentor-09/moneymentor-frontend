@@ -2,9 +2,9 @@ name: MoneyMentor CI/CD
 
 on:
   push:
-    branches: [ FrontendplusTests ]
+    branches: [ main ]
   pull_request:
-    branches: [ FrontendplusTests ]
+    branches: [ main ]
 
 jobs:
   # 🔹 1. Continuous Integration (Build + Lint + Test)
