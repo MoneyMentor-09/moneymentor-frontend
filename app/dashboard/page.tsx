@@ -32,7 +32,7 @@ interface Transaction {
 interface Budget {
   id: string
   category: string
-  limit: number
+  amount: number
   spent: number
 }
 
@@ -366,8 +366,15 @@ const pieChartData = Object.entries(expenseByCategory).map(([category, value]) =
         <BarChart data={lineChartData} barSize={35} barCategoryGap="10%">
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="month" />
-          <YAxis />
-          <Tooltip formatter={(value) => [`$${value}`, '']} />
+          {/* 💲 Add currency format for Y-axis */}
+          <YAxis
+            tickFormatter={(value) =>
+              `$${value.toLocaleString()}`
+            }
+          />
+          <Tooltip
+            formatter={(value: number) => [`$${value.toLocaleString()}`, ""]}
+          />
           <Legend />
           <Bar dataKey="income" fill="#00C49F" name="Income" />
           <Bar dataKey="expenses" fill="#FF8042" name="Expenses" />
@@ -383,47 +390,66 @@ const pieChartData = Object.entries(expenseByCategory).map(([category, value]) =
 </Card>
 </div>
 
+
         {/* Recent Transactions and Budget Progress */}
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Recent Transactions */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+   {/* Recent Transactions */}
+<Card>
+  <CardHeader className="flex flex-row items-center justify-between">
+    <div>
+      <CardTitle>Recent Transactions</CardTitle>
+      <CardDescription>Your latest financial activity</CardDescription>
+    </div>
+    <Button variant="outline" size="sm" asChild>
+      <Link href="/transactions">View All</Link>
+    </Button>
+  </CardHeader>
+
+  <CardContent>
+    <div className="space-y-4">
+      {[...transactions]
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // newest first
+        .slice(0, 5) // only first 5
+        .map((transaction) => (
+          <div
+            key={transaction.id}
+            className="flex items-center justify-between"
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className={`h-2 w-2 rounded-full ${
+                  transaction.type === "income" ? "bg-green-500" : "bg-red-500"
+                }`}
+              />
               <div>
-                <CardTitle>Recent Transactions</CardTitle>
-                <CardDescription>Your latest financial activity</CardDescription>
+                <p className="text-sm font-medium">
+                  {transaction.description}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {transaction.category}
+                </p>
               </div>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/transactions">View All</Link>
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {transactions.slice(0, 5).map((transaction) => (
-                  <div key={transaction.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`h-2 w-2 rounded-full ${
-                        transaction.type === 'income' ? 'bg-green-500' : 'bg-red-500'
-                      }`} />
-                      <div>
-                        <p className="text-sm font-medium">{transaction.description}</p>
-                        <p className="text-xs text-muted-foreground">{transaction.category}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className={`text-sm font-medium ${
-                        transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {transaction.type === 'income' ? '+' : '-'}${transaction.amount}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(transaction.date).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div className="text-right">
+              <p
+                className={`text-sm font-medium ${
+                  transaction.type === "income" ? "text-green-600" : "text-red-600"
+                }`}
+              >
+                {transaction.type === "income"
+                  ? `+$${Math.abs(transaction.amount)}`
+                  : `-$${Math.abs(transaction.amount)}`}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {new Date(transaction.date).toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+        ))}
+    </div>
+  </CardContent>
+</Card>
+
 
           {/* Budget Progress */}
           <Card>
@@ -439,15 +465,15 @@ const pieChartData = Object.entries(expenseByCategory).map(([category, value]) =
             <CardContent>
               <div className="space-y-4">
                 {budgets.length > 0 ? budgets.slice(0, 5).map((budget) => {
-                  const percentage = (budget.spent / budget.limit) * 100
-                  const isOverBudget = budget.spent > budget.limit
+                  const percentage = (budget.spent / budget.amount) * 100
+                  const isOverBudget = budget.spent > budget.amount
                   
                   return (
                     <div key={budget.id} className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">{budget.category}</span>
                         <span className={`text-sm ${isOverBudget ? 'text-red-600' : 'text-muted-foreground'}`}>
-                          ${budget.spent.toLocaleString()} / ${budget.limit.toLocaleString()}
+                          ${budget.spent.toLocaleString()} / ${budget.amount.toLocaleString()}
                         </span>
                       </div>
                       <div className="w-full bg-muted rounded-full h-2">
