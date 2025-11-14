@@ -1,3 +1,8 @@
+// Dashboar of the dashboard which includes user stats 
+//Total balance, income, expenses, fraud score, charts for expense categories and monthly trends,
+// recent transactions, budget progress, and fraud risk summary.
+
+
 "use client"
 
 import { useState, useEffect } from "react"
