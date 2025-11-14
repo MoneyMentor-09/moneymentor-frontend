@@ -1,24 +1,42 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import type React from "react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Upload, FileText, CheckCircle2, AlertCircle } from "lucide-react"
-import { parseCSV } from "@/lib/csv-parser"
+import {
+  Upload,
+  FileText,
+  CheckCircle2,
+  AlertCircle,
+  Download,
+} from "lucide-react"
+import { parseCSV, generateSampleCSV } from "@/lib/csv-parser"
 import { useToast } from "@/hooks/use-toast"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 
 interface UploadCSVDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSuccess?: () => void
 }
 
-export function UploadCSVDialog({ open, onOpenChange }: UploadCSVDialogProps) {
+export function UploadCSVDialog({
+  open,
+  onOpenChange,
+  onSuccess,
+}: UploadCSVDialogProps) {
   const [file, setFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
-  const [uploadStatus, setUploadStatus] = useState<"idle" | "success" | "error">("idle")
+  const [uploadStatus, setUploadStatus] = useState<
+    "idle" | "success" | "error"
+  >("idle")
   const { toast } = useToast()
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -33,6 +51,24 @@ export function UploadCSVDialog({ open, onOpenChange }: UploadCSVDialogProps) {
         variant: "destructive",
       })
     }
+  }
+
+  const handleDownloadSample = () => {
+    const csv = generateSampleCSV()
+    const blob = new Blob([csv], { type: "text/csv" })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "sample-transactions.csv"
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+
+    toast({
+      title: "Sample downloaded",
+      description: "Use this format for your transaction CSV",
+    })
   }
 
   const handleUpload = async () => {
@@ -58,12 +94,14 @@ export function UploadCSVDialog({ open, onOpenChange }: UploadCSVDialogProps) {
         user_id: user.id,
         date: t.date,
         description: t.description,
-        amount: t.amount,
-        category: t.category,
-        type: t.amount >= 0 ? "income" : "expense",
+        amount: (Number(t.amount)),
+        type: Number(t.amount) >= 0 ? "income" : "expense",
+        category: t.category.trim(),
       }))
 
-      const { error } = await supabase.from("transactions").insert(transactionsToInsert)
+      const { error } = await supabase
+        .from("transactions")
+        .insert(transactionsToInsert)
 
       if (error) {
         throw new Error(error.message)
@@ -79,13 +117,16 @@ export function UploadCSVDialog({ open, onOpenChange }: UploadCSVDialogProps) {
         onOpenChange(false)
         setFile(null)
         setUploadStatus("idle")
-        window.location.reload() // Refresh to show new transactions
+        onSuccess?.()
       }, 2000)
     } catch (error) {
       setUploadStatus("error")
       toast({
         title: "Upload failed",
-        description: error instanceof Error ? error.message : "Failed to parse CSV file",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to parse CSV file",
         variant: "destructive",
       })
     } finally {
@@ -99,8 +140,8 @@ export function UploadCSVDialog({ open, onOpenChange }: UploadCSVDialogProps) {
         <DialogHeader>
           <DialogTitle>Upload Transaction CSV</DialogTitle>
           <DialogDescription>
-            Upload a CSV file containing your transaction data. The file should include columns for date, description,
-            amount, and category.
+            Upload a CSV file containing your transaction data. The file should
+            include columns for date, description, amount, and category.
           </DialogDescription>
         </DialogHeader>
 
@@ -117,7 +158,9 @@ export function UploadCSVDialog({ open, onOpenChange }: UploadCSVDialogProps) {
             />
             <label htmlFor="csv-upload" className="cursor-pointer">
               <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-sm font-medium text-foreground mb-1">Click to upload CSV file</p>
+              <p className="text-sm font-medium text-foreground mb-1">
+                Click to upload CSV file
+              </p>
               <p className="text-xs text-muted-foreground">or drag and drop</p>
             </label>
           </div>
@@ -127,30 +170,55 @@ export function UploadCSVDialog({ open, onOpenChange }: UploadCSVDialogProps) {
             <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
               <FileText className="h-5 w-5 text-primary" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
-                <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(2)} KB</p>
+                <p className="text-sm font-medium text-foreground truncate">
+                  {file.name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {(file.size / 1024).toFixed(2)} KB
+                </p>
               </div>
-              {uploadStatus === "success" && <CheckCircle2 className="h-5 w-5 text-green-600" />}
-              {uploadStatus === "error" && <AlertCircle className="h-5 w-5 text-red-600" />}
+              {uploadStatus === "success" && (
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+              )}
+              {uploadStatus === "error" && (
+                <AlertCircle className="h-5 w-5 text-red-600" />
+              )}
             </div>
           )}
 
           {/* CSV Format Example */}
           <div className="bg-muted p-4 rounded-lg">
-            <p className="text-xs font-medium text-foreground mb-2">Expected CSV format:</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-medium text-foreground">
+                Expected CSV format:
+              </p>
+              <Button variant="ghost" size="sm" onClick={handleDownloadSample}>
+                <Download className="h-3 w-3 mr-1" />
+                Download Sample
+              </Button>
+            </div>
             <pre className="text-xs text-muted-foreground font-mono">
               date,description,amount,category{"\n"}
-              2025-09-28,Grocery Store,-85.32,Food & Dining{"\n"}
-              2025-09-27,Salary,5200.00,Income
+              2025-09-28,Grocery Store,-85.32,Groceries{"\n"}
+              2025-09-27,Salary,5200.00,Salary
             </pre>
           </div>
 
           {/* Actions */}
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1" disabled={isUploading}>
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="flex-1"
+              disabled={isUploading}
+            >
               Cancel
             </Button>
-            <Button onClick={handleUpload} className="flex-1" disabled={!file || isUploading}>
+            <Button
+              onClick={handleUpload}
+              className="flex-1"
+              disabled={!file || isUploading}
+            >
               {isUploading ? "Uploading..." : "Upload"}
             </Button>
           </div>

@@ -39,6 +39,28 @@
   --sidebar-ring: oklch(0.45 0.15 195);
 }
 
+.dark {
+  --background: oklch(0.20 0.02 270);       /* lighter than 0.15, easier on eyes */
+  --foreground: oklch(0.95 0.02 270);       /* keep text readable */
+  --card: oklch(0.28 0.02 270);             /* slightly darker than background */
+  --card-foreground: oklch(0.95 0.02 270);  
+  --popover: oklch(0.28 0.02 270);
+  --popover-foreground: oklch(0.95 0.02 270);
+  --primary: oklch(0.45 0.14 260);          /* primary buttons a bit muted */
+  --primary-foreground: oklch(0.98 0.01 200);
+  --secondary: oklch(0.25 0.02 260);
+  --secondary-foreground: oklch(0.95 0 270);
+  --muted: oklch(0.35 0.01 260);
+  --muted-foreground: oklch(0.75 0.03 270);
+  --accent: oklch(0.45 0.06 260);
+  --accent-foreground: oklch(0.95 0 270);
+  --border: oklch(0.45 0.02 260);
+  --input: oklch(0.45 0.02 260);
+  --sidebar: oklch(0.3 0 200);
+  --sidebar-foreground: oklch(0.95 0 270);
+}
+
+
 @theme inline {
   /* optional: --font-sans, --font-serif, --font-mono if they are applied in the layout.tsx */
   --color-background: var(--background);

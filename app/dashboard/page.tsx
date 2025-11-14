@@ -1,328 +1,535 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import Link from "next/link"
-import { ExpenseChart } from "@/components/expense-chart"
-import { RecentTransactions } from "@/components/recent-transactions"
-import { BudgetOverview } from "@/components/budget-overview"
-import { MessageSquare, Shield, AlertCircle } from "lucide-react"
-import { detectFraud, calculateFraudRiskScore } from "@/lib/fraud-detection"
+import { useState, useEffect } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { DashboardLayout } from "@/components/dashboard-layout"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  DollarSign, 
+  CreditCard, 
+  AlertTriangle,
+  Plus,
+  ArrowUpRight,
+  ArrowDownRight,
+  Target
+} from "lucide-react"
+import { PieChart, Pie, Cell, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Bar, BarChart, Legend } from "recharts"
+import Link from "next/link"
 
-interface Profile {
-  full_name: string
-  email: string
+interface Transaction {
+  id: string
+  date: string
+  description: string
+  category: string
+  type: 'income' | 'expense'
+  amount: number
 }
 
-interface Stats {
-  balance: number
-  income: number
-  expenses: number
-  balanceChange: number
-  expensesChange: number
+interface Budget {
+  id: string
+  category: string
+  amount: number
+  spent: number
 }
+
+interface Alert {
+  id: string
+  message: string
+  risk_score: number
+  timestamp: string
+}
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D']
 
 export default function DashboardPage() {
-  const router = useRouter()
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [fraudAlerts, setFraudAlerts] = useState(0)
-  const [riskScore, setRiskScore] = useState(0)
-  const [tablesExist, setTablesExist] = useState(true)
+  const [user, setUser] = useState<any>(null)
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [budgets, setBudgets] = useState<Budget[]>([])
+  const [alerts, setAlerts] = useState<Alert[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    async function fetchData() {
-      const supabase = getSupabaseBrowserClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
-        router.push("/login")
-        return
-      }
-
+    const fetchData = async () => {
       try {
-        const { data: profileData, error: profileError } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single()
+        const supabase = getSupabaseBrowserClient()
+        
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        
+        setUser(user)
 
-        if (profileError && profileError.code === "42P01") {
-          setTablesExist(false)
-          setProfile({
-            full_name: user.user_metadata?.full_name || user.email?.split("@")[0] || "User",
-            email: user.email || "",
-          })
-          setIsLoading(false)
-          return
-        }
+        // Fetch transactions
+        const { data: transactionsData, error: transactionsError } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('date', { ascending: false })
 
-        if (profileData) {
-          setProfile({
-            full_name: profileData.full_name || user.email?.split("@")[0] || "User",
-            email: user.email || "",
-          })
-        }
+        if (transactionsError) throw transactionsError
+        setTransactions(transactionsData || [])
 
-        const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0]
-        const startOfLastMonth = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1)
-          .toISOString()
-          .split("T")[0]
-        const endOfLastMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 0).toISOString().split("T")[0]
+        // Fetch budgets
+        const { data: budgetsData, error: budgetsError } = await supabase
+          .from('budgets')
+          .select('*')
+          .eq('user_id', user.id)
 
-        const { data: currentTransactions } = await supabase
-          .from("transactions")
-          .select("amount, type")
-          .eq("user_id", user.id)
-          .gte("date", startOfMonth)
+        if (budgetsError) throw budgetsError
+        setBudgets(budgetsData || [])
 
-        const { data: lastMonthTransactions } = await supabase
-          .from("transactions")
-          .select("amount, type")
-          .eq("user_id", user.id)
-          .gte("date", startOfLastMonth)
-          .lte("date", endOfLastMonth)
+        // Fetch alerts
+        const { data: alertsData, error: alertsError } = await supabase
+          .from('alerts')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('timestamp', { ascending: false })
+          .limit(5)
 
-        const currentIncome =
-          currentTransactions?.filter((t) => t.type === "income").reduce((sum, t) => sum + Number(t.amount), 0) || 0
-        const currentExpenses =
-          currentTransactions
-            ?.filter((t) => t.type === "expense")
-            .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0) || 0
+        if (alertsError) throw alertsError
+        setAlerts(alertsData || [])
 
-        const lastMonthIncome =
-          lastMonthTransactions?.filter((t) => t.type === "income").reduce((sum, t) => sum + Number(t.amount), 0) || 0
-        const lastMonthExpenses =
-          lastMonthTransactions
-            ?.filter((t) => t.type === "expense")
-            .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0) || 0
-
-        const balance = currentIncome - currentExpenses
-        const lastMonthBalance = lastMonthIncome - lastMonthExpenses
-
-        const balanceChange = lastMonthBalance > 0 ? ((balance - lastMonthBalance) / lastMonthBalance) * 100 : 0
-        const expensesChange =
-          lastMonthExpenses > 0 ? ((currentExpenses - lastMonthExpenses) / lastMonthExpenses) * 100 : 0
-
-        setStats({
-          balance,
-          income: currentIncome,
-          expenses: currentExpenses,
-          balanceChange,
-          expensesChange,
-        })
-
-        const alerts = detectFraud()
-        setFraudAlerts(alerts.length)
-        setRiskScore(calculateFraudRiskScore())
-      } catch (error) {
-        console.error("[v0] Error fetching dashboard data:", error)
-        setTablesExist(false)
-        setProfile({
-          full_name: user.user_metadata?.full_name || user.email?.split("@")[0] || "User",
-          email: user.email || "",
-        })
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch data')
+      } finally {
+        setLoading(false)
       }
-
-      setIsLoading(false)
     }
 
     fetchData()
-  }, [router])
+  }, [])
 
-  const handleLogout = async () => {
-    const supabase = getSupabaseBrowserClient()
-    await supabase.auth.signOut()
-    router.push("/login")
-  }
+  // Calculate financial metrics
+  const totalIncome = transactions
+    .filter(t => t.type === 'income')
+    .reduce((sum, t) => sum + t.amount, 0)
 
-  if (isLoading) {
+  const totalExpenses = transactions
+    .filter(t => t.type === 'expense')
+    .reduce((sum, t) => sum + t.amount, 0)
+
+  const totalBalance = totalIncome - totalExpenses
+
+  // Calculate fraud score (simplified)
+  const fraudScore = alerts.length > 0 
+    ? Math.round(alerts.reduce((sum, alert) => sum + alert.risk_score, 0) / alerts.length)
+    : 0
+
+  // Previous month comparison (mock data)
+  const previousMonthIncome = totalIncome * 0.9
+  const previousMonthExpenses = totalExpenses * 1.1
+  const incomeChange = ((totalIncome - previousMonthIncome) / previousMonthIncome) * 100
+  const expenseChange = ((totalExpenses - previousMonthExpenses) / previousMonthExpenses) * 100
+
+  // Prepare chart data
+const expenseByCategory = transactions
+  .filter(t => t.type === 'expense')
+  .reduce((acc, t) => {
+    const amount = Math.abs(t.amount) // ensure positive
+    acc[t.category] = (acc[t.category] || 0) + amount
+    return acc
+  }, {} as Record<string, number>)
+
+const pieChartData = Object.entries(expenseByCategory).map(([category, value]) => ({
+  name: category,
+  value
+}))
+
+
+  const monthlyData = transactions.reduce((acc, t) => {
+    const month = new Date(t.date).toLocaleDateString('en-US', { month: 'short' })
+    if (!acc[month]) {
+      acc[month] = { income: 0, expenses: 0 }
+    }
+    if (t.type === 'income') {
+      acc[month].income += t.amount
+    } else {
+      acc[month].expenses += t.amount
+    }
+    return acc
+  }, {} as Record<string, { income: number; expenses: number }>)
+
+  const lineChartData = Object.entries(monthlyData).map(([month, data]) => ({
+    month,
+    income: data.income,
+    expenses: data.expenses,
+    balance: data.income - data.expenses
+  }))
+
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
-      </div>
+      <DashboardLayout>
+        <div className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div className="h-4 bg-muted rounded w-24 animate-pulse" />
+                  <div className="h-4 w-4 bg-muted rounded animate-pulse" />
+                </CardHeader>
+                <CardContent>
+                  <div className="h-8 bg-muted rounded w-32 mb-2 animate-pulse" />
+                  <div className="h-3 bg-muted rounded w-20 animate-pulse" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </DashboardLayout>
     )
   }
 
-  if (!profile) return null
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="text-center py-12">
+          <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2">Database Setup Required</h2>
+          <p className="text-muted-foreground mb-4">Please run setup scripts to initialize the database.</p>
+          <Button asChild>
+            <Link href="/transactions">Add Your First Transaction</Link>
+          </Button>
+        </div>
+      </DashboardLayout>
+    )
+  }
 
-  const firstName = profile.full_name.split(" ")[0]
-
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <Link href="/dashboard">
-              <h1 className="font-serif text-2xl font-bold text-foreground">MoneyMentor</h1>
-            </Link>
-            <nav className="hidden md:flex items-center gap-6">
-              <Link href="/dashboard" className="text-sm font-medium text-foreground hover:text-primary">
-                Dashboard
+  if (transactions.length === 0) {
+    return (
+      <DashboardLayout>
+        <div className="text-center py-12">
+          <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2">No Financial Data Found</h2>
+          <p className="text-muted-foreground mb-4">Start by adding a transaction or uploading a file.</p>
+          <div className="flex gap-4 justify-center">
+            <Button asChild>
+              <Link href="/transactions">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Transaction
               </Link>
-              <Link href="/transactions" className="text-sm font-medium text-muted-foreground hover:text-primary">
-                Transactions
-              </Link>
-              <Link href="/budget" className="text-sm font-medium text-muted-foreground hover:text-primary">
-                Budget
-              </Link>
-              <Link href="/alerts" className="text-sm font-medium text-muted-foreground hover:text-primary">
-                Alerts
-                {fraudAlerts > 0 && (
-                  <span className="ml-1 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-600 rounded-full">
-                    {fraudAlerts}
-                  </span>
-                )}
-              </Link>
-              <Link href="/me" className="text-sm font-medium text-muted-foreground hover:text-primary">
-                Profile
-              </Link>
-            </nav>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link href="/chat">
-              <Button variant="outline">
-                <MessageSquare className="h-4 w-4 mr-2" />
-                AI Chat
-              </Button>
-            </Link>
-            <Button variant="outline" onClick={handleLogout}>
-              Log Out
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/transactions">Upload CSV</Link>
             </Button>
           </div>
         </div>
-      </header>
+      </DashboardLayout>
+    )
+  }
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-foreground mb-2">Welcome back, {firstName}!</h2>
-          <p className="text-muted-foreground">Here's your financial overview for this month</p>
-        </div>
-
-        {!tablesExist && (
-          <Alert className="mb-6 border-blue-200 bg-blue-50">
-            <AlertCircle className="h-4 w-4 text-blue-600" />
-            <AlertTitle className="text-blue-800">Database Setup Required</AlertTitle>
-            <AlertDescription className="text-blue-700">
-              To start tracking your finances, please run the SQL scripts to set up your database. Click the gear icon
-              (⚙️) in the top right, then run the scripts in the Scripts section. After that, upload your bank statement
-              CSV from the Transactions page.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Financial Overview Cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Balance</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Balance</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">${stats?.balance.toFixed(2) || "0.00"}</div>
-              {stats && stats.balanceChange !== 0 && (
-                <p className={`text-xs mt-1 ${stats.balanceChange > 0 ? "text-green-600" : "text-red-600"}`}>
-                  {stats.balanceChange > 0 ? "+" : ""}
-                  {stats.balanceChange.toFixed(1)}% from last month
-                </p>
-              )}
+              <div className="text-2xl font-bold">${totalBalance.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">
+                {totalBalance >= 0 ? (
+                  <span className="text-green-600 flex items-center">
+                    <ArrowUpRight className="h-3 w-3 mr-1" />
+                    Positive balance
+                  </span>
+                ) : (
+                  <span className="text-red-600 flex items-center">
+                    <ArrowDownRight className="h-3 w-3 mr-1" />
+                    Negative balance
+                  </span>
+                )}
+              </p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Income</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Income</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">${stats?.income.toFixed(2) || "0.00"}</div>
-              <p className="text-xs text-muted-foreground mt-1">This month</p>
+              <div className="text-2xl font-bold text-green-600">${totalIncome.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">
+                {incomeChange >= 0 ? (
+                  <span className="text-green-600 flex items-center">
+                    <ArrowUpRight className="h-3 w-3 mr-1" />
+                    +{incomeChange.toFixed(1)}% from last month
+                  </span>
+                ) : (
+                  <span className="text-red-600 flex items-center">
+                    <ArrowDownRight className="h-3 w-3 mr-1" />
+                    {incomeChange.toFixed(1)}% from last month
+                  </span>
+                )}
+              </p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Expenses</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+              <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">${stats?.expenses.toFixed(2) || "0.00"}</div>
-              {stats && stats.expensesChange !== 0 && (
-                <p className={`text-xs mt-1 ${stats.expensesChange > 0 ? "text-red-600" : "text-green-600"}`}>
-                  {stats.expensesChange > 0 ? "+" : ""}
-                  {stats.expensesChange.toFixed(1)}% from last month
-                </p>
-              )}
+              <div className="text-2xl font-bold text-red-600">${totalExpenses.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">
+                {expenseChange <= 0 ? (
+                  <span className="text-green-600 flex items-center">
+                    <ArrowUpRight className="h-3 w-3 mr-1" />
+                    {Math.abs(expenseChange).toFixed(1)}% decrease from last month
+                  </span>
+                ) : (
+                  <span className="text-red-600 flex items-center">
+                    <ArrowDownRight className="h-3 w-3 mr-1" />
+                    +{expenseChange.toFixed(1)}% from last month
+                  </span>
+                )}
+              </p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Security Score</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Fraud Score</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-2">
-                <Shield
-                  className={`h-5 w-5 ${riskScore < 30 ? "text-green-600" : riskScore < 60 ? "text-yellow-600" : "text-red-600"}`}
-                />
-                <div className="text-2xl font-bold text-foreground">{Math.max(0, 100 - riskScore)}/100</div>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {riskScore < 30 ? "Excellent" : riskScore < 60 ? "Good" : "Needs attention"}
+              <div className="text-2xl font-bold">{fraudScore}%</div>
+              <p className="text-xs text-muted-foreground">
+                {fraudScore < 30 ? (
+                  <span className="text-green-600">Low risk</span>
+                ) : fraudScore < 70 ? (
+                  <span className="text-yellow-600">Medium risk</span>
+                ) : (
+                  <span className="text-red-600">High risk</span>
+                )}
               </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Charts and Transactions */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Spending Overview</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ExpenseChart />
-              </CardContent>
-            </Card>
-          </div>
+        {/* Charts Section */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Expense Categories Pie Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Expense Categories</CardTitle>
+              <CardDescription>Breakdown of your spending by category</CardDescription>
+            </CardHeader>
+            <CardContent>
+           {pieChartData.length > 0 ? (
+  <ResponsiveContainer width="100%" height={300}>
+    <PieChart>
+      <Pie
+        data={pieChartData}
+        dataKey="value"
+        nameKey="name"
+        cx="50%"
+        cy="50%"
+        outerRadius={100}
+        label={(entry: any) => {
+          const { name, percent } = entry as { name: string; value: number; percent: number }
+          return `${name} ${(percent * 100).toFixed(0)}%`
+        }}
+      >
+        {pieChartData.map((entry, index) => (
+          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+        ))}
+      </Pie>
+      <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
+    </PieChart>
+  </ResponsiveContainer>
+) : (
+  <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+    No expense data available
+  </div>
+)}</CardContent>
+</Card>
 
-          <div>
-            <Card>
-              <CardHeader>
-                <CardTitle>Budget Status</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <BudgetOverview />
-              </CardContent>
-            </Card>
+{/* Monthly Trends Bar Chart */}
+<Card>
+  <CardHeader>
+    <CardTitle>Monthly Trends</CardTitle>
+    <CardDescription>Income vs expenses over time</CardDescription>
+  </CardHeader>
+  <CardContent>
+    {lineChartData.length > 0 ? (
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart data={lineChartData} barSize={35} barCategoryGap="10%">
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="month" />
+          {/* 💲 Add currency format for Y-axis */}
+          <YAxis
+            tickFormatter={(value) =>
+              `$${value.toLocaleString()}`
+            }
+          />
+          <Tooltip
+            formatter={(value: number) => [`$${value.toLocaleString()}`, ""]}
+          />
+          <Legend />
+          <Bar dataKey="income" fill="#00C49F" name="Income" />
+          <Bar dataKey="expenses" fill="#FF8042" name="Expenses" />
+          <Bar dataKey="balance" fill="#0088FE" name="Balance" />
+        </BarChart>
+      </ResponsiveContainer>
+    ) : (
+      <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+        No trend data available
+      </div>
+    )}
+  </CardContent>
+</Card>
+</div>
+
+
+        {/* Recent Transactions and Budget Progress */}
+        <div className="grid gap-6 md:grid-cols-2">
+   {/* Recent Transactions */}
+<Card>
+  <CardHeader className="flex flex-row items-center justify-between">
+    <div>
+      <CardTitle>Recent Transactions</CardTitle>
+      <CardDescription>Your latest financial activity</CardDescription>
+    </div>
+    <Button variant="outline" size="sm" asChild>
+      <Link href="/transactions">View All</Link>
+    </Button>
+  </CardHeader>
+
+  <CardContent>
+    <div className="space-y-4">
+      {[...transactions]
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // newest first
+        .slice(0, 5) // only first 5
+        .map((transaction) => (
+          <div
+            key={transaction.id}
+            className="flex items-center justify-between"
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className={`h-2 w-2 rounded-full ${
+                  transaction.type === "income" ? "bg-green-500" : "bg-red-500"
+                }`}
+              />
+              <div>
+                <p className="text-sm font-medium">
+                  {transaction.description}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {transaction.category}
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p
+                className={`text-sm font-medium ${
+                  transaction.type === "income" ? "text-green-600" : "text-red-600"
+                }`}
+              >
+                {transaction.type === "income"
+                  ? `+$${Math.abs(transaction.amount)}`
+                  : `-$${Math.abs(transaction.amount)}`}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {new Date(transaction.date).toLocaleDateString()}
+              </p>
+            </div>
           </div>
+        ))}
+    </div>
+  </CardContent>
+</Card>
+
+
+          {/* Budget Progress */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Budget Progress</CardTitle>
+                <CardDescription>Track your spending against budgets</CardDescription>
+              </div>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/budget">Manage</Link>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {budgets.length > 0 ? budgets.slice(0, 5).map((budget) => {
+                  const percentage = (budget.spent / budget.amount) * 100
+                  const isOverBudget = budget.spent > budget.amount
+                  
+                  return (
+                    <div key={budget.id} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">{budget.category}</span>
+                        <span className={`text-sm ${isOverBudget ? 'text-red-600' : 'text-muted-foreground'}`}>
+                          ${budget.spent.toLocaleString()} / ${budget.amount.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div 
+                          className={`h-2 rounded-full transition-all ${
+                            isOverBudget ? 'bg-red-500' : percentage > 80 ? 'bg-yellow-500' : 'bg-green-500'
+                          }`}
+                          style={{ width: `${Math.min(percentage, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                }) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Target className="h-8 w-8 mx-auto mb-2" />
+                    <p className="text-sm">No budgets set up yet</p>
+                    <Button variant="outline" size="sm" className="mt-2" asChild>
+                      <Link href="/budget">Create Budget</Link>
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Recent Transactions */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Recent Transactions</CardTitle>
-              <Link href="/transactions">
-                <Button variant="ghost" size="sm">
-                  View All
-                </Button>
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <RecentTransactions />
-          </CardContent>
-        </Card>
-      </main>
-    </div>
+        {/* Fraud Risk Summary */}
+        {alerts.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                Fraud Risk Summary
+              </CardTitle>
+              <CardDescription>Recent security alerts and risk assessments</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {alerts.map((alert) => (
+                  <div key={alert.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div>
+                      <p className="text-sm font-medium">{alert.message}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(alert.timestamp).toLocaleString()}
+                      </p>
+                    </div>
+                    <Badge variant={alert.risk_score > 70 ? 'destructive' : alert.risk_score > 30 ? 'default' : 'secondary'}>
+                      {alert.risk_score}% risk
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </DashboardLayout>
   )
 }

@@ -1,255 +1,400 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import Link from "next/link"
-import { MessageSquare, AlertTriangle, CheckCircle2, XCircle } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { detectFraud, type FraudAlert } from "@/lib/fraud-detection"
+import { useState, useEffect } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { DashboardLayout } from "@/components/dashboard-layout"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { 
+  AlertTriangle, 
+  Shield, 
+  CheckCircle2, 
+  XCircle, 
+  Clock,
+  TrendingUp,
+  DollarSign,
+  MapPin,
+  CreditCard
+} from "lucide-react"
+import { toast } from "sonner"
+import Link from "next/link"
 
-interface Profile {
-  full_name: string
+interface Alert {
+  id: string
+  message: string
+  risk_score: number
+  timestamp: string
+  read: boolean
+  type: 'fraud' | 'unusual_spending' | 'budget_warning' | 'low_balance'
+  transaction_id?: string
 }
 
 export default function AlertsPage() {
-  const router = useRouter()
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [alerts, setAlerts] = useState<FraudAlert[]>([])
+  const [alerts, setAlerts] = useState<Alert[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<'all' | 'unread' | 'fraud' | 'budget'>('all')
 
   useEffect(() => {
-    async function fetchData() {
+    fetchAlerts()
+  }, [])
+
+  const fetchAlerts = async () => {
+    try {
       const supabase = getSupabaseBrowserClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) return
 
-      if (!user) {
-        router.push("/login")
-        return
-      }
+      const { data, error } = await supabase
+        .from('alerts')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('timestamp', { ascending: false })
 
-      const { data: profileData } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-
-      if (profileData) {
-        setProfile({
-          full_name: profileData.full_name || user.email?.split("@")[0] || "User",
-        })
-      }
-
-      // Run fraud detection
-      const detectedAlerts = detectFraud()
-      setAlerts(detectedAlerts)
-
-      setIsLoading(false)
+      if (error) throw error
+      setAlerts(data || [])
+    } catch (error) {
+      toast.error("Failed to fetch alerts")
+      console.error(error)
+    } finally {
+      setLoading(false)
     }
-
-    fetchData()
-  }, [router])
-
-  const handleLogout = async () => {
-    const supabase = getSupabaseBrowserClient()
-    await supabase.auth.signOut()
-    router.push("/login")
   }
 
-  const handleDismissAlert = (alertId: string) => {
-    setAlerts(alerts.filter((alert) => alert.id !== alertId))
+  const markAsRead = async (alertId: string) => {
+    try {
+      const supabase = getSupabaseBrowserClient()
+      const { error } = await supabase
+        .from('alerts')
+        .update({ read: true })
+        .eq('id', alertId)
+
+      if (error) throw error
+      
+      setAlerts(alerts.map(alert => 
+        alert.id === alertId ? { ...alert, read: true } : alert
+      ))
+    } catch (error) {
+      toast.error("Failed to mark alert as read")
+      console.error(error)
+    }
   }
 
-  if (isLoading) {
+  const markAllAsRead = async () => {
+    try {
+      const supabase = getSupabaseBrowserClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) return
+
+      const { error } = await supabase
+        .from('alerts')
+        .update({ read: true })
+        .eq('user_id', user.id)
+        .eq('read', false)
+
+      if (error) throw error
+      
+      setAlerts(alerts.map(alert => ({ ...alert, read: true })))
+      toast.success("All alerts marked as read")
+    } catch (error) {
+      toast.error("Failed to mark all alerts as read")
+      console.error(error)
+    }
+  }
+
+  const deleteAlert = async (alertId: string) => {
+    try {
+      const supabase = getSupabaseBrowserClient()
+      const { error } = await supabase
+        .from('alerts')
+        .delete()
+        .eq('id', alertId)
+
+      if (error) throw error
+      
+      setAlerts(alerts.filter(alert => alert.id !== alertId))
+      toast.success("Alert deleted")
+    } catch (error) {
+      toast.error("Failed to delete alert")
+      console.error(error)
+    }
+  }
+
+  const getAlertIcon = (type: string, riskScore: number) => {
+    switch (type) {
+      case 'fraud':
+        return <Shield className="h-5 w-5 text-red-500" />
+      case 'unusual_spending':
+        return <TrendingUp className="h-5 w-5 text-orange-500" />
+      case 'budget_warning':
+        return <DollarSign className="h-5 w-5 text-yellow-500" />
+      case 'low_balance':
+        return <CreditCard className="h-5 w-5 text-blue-500" />
+      default:
+        return <AlertTriangle className="h-5 w-5 text-gray-500" />
+    }
+  }
+
+  const getAlertBadge = (type: string, riskScore: number) => {
+    if (type === 'fraud' || riskScore > 70) {
+      return <Badge variant="destructive">High Risk</Badge>
+    } else if (riskScore > 30) {
+      return <Badge variant="default">Medium Risk</Badge>
+    } else {
+      return <Badge variant="secondary">Low Risk</Badge>
+    }
+  }
+
+  const getAlertColor = (type: string, riskScore: number) => {
+    if (type === 'fraud' || riskScore > 70) {
+      return 'border-red-200 bg-red-50/50'
+    } else if (riskScore > 30) {
+      return 'border-orange-200 bg-orange-50/50'
+    } else {
+      return 'border-yellow-200 bg-yellow-50/50'
+    }
+  }
+
+  // Filter alerts
+  const filteredAlerts = alerts.filter(alert => {
+    switch (filter) {
+      case 'unread':
+        return !alert.read
+      case 'fraud':
+        return alert.type === 'fraud' || alert.risk_score > 70
+      case 'budget':
+        return alert.type === 'budget_warning'
+      default:
+        return true
+    }
+  })
+
+  const unreadCount = alerts.filter(alert => !alert.read).length
+  const highRiskCount = alerts.filter(alert => alert.risk_score > 70).length
+
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
-      </div>
+      <DashboardLayout>
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">Alerts</h1>
+              <p className="text-muted-foreground">Security and spending notifications</p>
+            </div>
+          </div>
+          <div className="h-96 bg-muted rounded-lg animate-pulse" />
+        </div>
+      </DashboardLayout>
     )
   }
 
-  if (!profile) return null
-
-  const criticalAlerts = alerts.filter((a) => a.severity === "critical")
-  const warningAlerts = alerts.filter((a) => a.severity === "warning")
-  const infoAlerts = alerts.filter((a) => a.severity === "info")
-
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <Link href="/dashboard">
-              <h1 className="font-serif text-2xl font-bold text-foreground">MoneyMentor</h1>
-            </Link>
-            <nav className="hidden md:flex items-center gap-6">
-              <Link href="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-primary">
-                Dashboard
-              </Link>
-              <Link href="/transactions" className="text-sm font-medium text-muted-foreground hover:text-primary">
-                Transactions
-              </Link>
-              <Link href="/budget" className="text-sm font-medium text-muted-foreground hover:text-primary">
-                Budget
-              </Link>
-              <Link href="/alerts" className="text-sm font-medium text-foreground hover:text-primary">
-                Alerts
-              </Link>
-              <Link href="/me" className="text-sm font-medium text-muted-foreground hover:text-primary">
-                Profile
-              </Link>
-            </nav>
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Alerts</h1>
+            <p className="text-muted-foreground">Security and spending notifications</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Link href="/chat">
-              <Button variant="outline">
-                <MessageSquare className="h-4 w-4 mr-2" />
-                AI Chat
-              </Button>
-            </Link>
-            <Button variant="outline" onClick={handleLogout}>
-              Log Out
+          {unreadCount > 0 && (
+            <Button variant="outline" onClick={markAllAsRead}>
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Mark All as Read
             </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-foreground mb-2">Security Alerts</h2>
-          <p className="text-muted-foreground">Monitor suspicious activity and fraud detection alerts</p>
+          )}
         </div>
 
         {/* Alert Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="grid gap-4 md:grid-cols-3">
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Critical Alerts</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Unread Alerts</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">{criticalAlerts.length}</div>
-              <p className="text-xs text-muted-foreground mt-1">Require immediate attention</p>
+              <div className="text-2xl font-bold">{unreadCount}</div>
+              <p className="text-xs text-muted-foreground">
+                Require your attention
+              </p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Warnings</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">High Risk</CardTitle>
+              <Shield className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">{warningAlerts.length}</div>
-              <p className="text-xs text-muted-foreground mt-1">Review recommended</p>
+              <div className="text-2xl font-bold text-red-600">{highRiskCount}</div>
+              <p className="text-xs text-muted-foreground">
+                Potential fraud detected
+              </p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Info</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Alerts</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{infoAlerts.length}</div>
-              <p className="text-xs text-muted-foreground mt-1">For your information</p>
+              <div className="text-2xl font-bold">{alerts.length}</div>
+              <p className="text-xs text-muted-foreground">
+                All time alerts
+              </p>
             </CardContent>
           </Card>
         </div>
 
+        {/* Filter Tabs */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex gap-2">
+              <Button
+                variant={filter === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('all')}
+              >
+                All ({alerts.length})
+              </Button>
+              <Button
+                variant={filter === 'unread' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('unread')}
+              >
+                Unread ({unreadCount})
+              </Button>
+              <Button
+                variant={filter === 'fraud' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('fraud')}
+              >
+                Fraud ({highRiskCount})
+              </Button>
+              <Button
+                variant={filter === 'budget' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('budget')}
+              >
+                Budget ({alerts.filter(a => a.type === 'budget_warning').length})
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Alerts List */}
-        {alerts.length === 0 ? (
+        {filteredAlerts.length === 0 ? (
           <Card>
-            <CardContent className="py-12 text-center">
-              <CheckCircle2 className="h-12 w-12 mx-auto mb-4 text-green-600" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">All Clear!</h3>
-              <p className="text-muted-foreground">No suspicious activity detected. Your account is secure.</p>
+            <CardContent className="text-center py-12">
+              <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">
+                {filter === 'all' ? 'No alerts yet' : `No ${filter} alerts`}
+              </h3>
+              <p className="text-muted-foreground">
+                {filter === 'all' 
+                  ? "You're all caught up! New alerts will appear here when detected."
+                  : `No ${filter} alerts found. Try selecting a different filter.`
+                }
+              </p>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-4">
-            {alerts.map((alert) => {
-              const severityConfig = {
-                critical: {
-                  icon: XCircle,
-                  bgColor: "bg-red-50 border-red-200",
-                  iconColor: "text-red-600",
-                  badgeColor: "bg-red-100 text-red-800 border-red-200",
-                },
-                warning: {
-                  icon: AlertTriangle,
-                  bgColor: "bg-yellow-50 border-yellow-200",
-                  iconColor: "text-yellow-600",
-                  badgeColor: "bg-yellow-100 text-yellow-800 border-yellow-200",
-                },
-                info: {
-                  icon: AlertTriangle,
-                  bgColor: "bg-blue-50 border-blue-200",
-                  iconColor: "text-blue-600",
-                  badgeColor: "bg-blue-100 text-blue-800 border-blue-200",
-                },
-              }
-
-              const config = severityConfig[alert.severity]
-              const Icon = config.icon
-
-              return (
-                <Card key={alert.id} className={`${config.bgColor} border`}>
-                  <CardContent className="p-6">
-                    <div className="flex items-start gap-4">
-                      <div className={`flex-shrink-0 ${config.iconColor}`}>
-                        <Icon className="h-6 w-6" />
+            {filteredAlerts.map((alert) => (
+              <Card 
+                key={alert.id} 
+                className={`transition-all hover:shadow-md ${getAlertColor(alert.type, alert.risk_score)} ${
+                  !alert.read ? 'border-l-4 border-l-primary' : ''
+                }`}
+              >
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-4 flex-1">
+                      <div className="flex-shrink-0 mt-1">
+                        {getAlertIcon(alert.type, alert.risk_score)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-4 mb-2">
-                          <div>
-                            <h3 className="font-semibold text-foreground mb-1">{alert.title}</h3>
-                            <Badge variant="outline" className={config.badgeColor}>
-                              {alert.type}
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="text-sm font-medium text-foreground">
+                            {alert.message}
+                          </h3>
+                          {!alert.read && (
+                            <Badge variant="outline" className="text-xs">
+                              New
                             </Badge>
-                          </div>
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">{alert.timestamp}</span>
+                          )}
                         </div>
-                        <p className="text-sm text-foreground/80 mb-3">{alert.description}</p>
-                        {alert.transaction && (
-                          <div className="bg-background/50 rounded-md p-3 mb-3 text-sm">
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <span className="text-muted-foreground">Amount:</span>
-                                <span className="font-medium ml-2">
-                                  ${Math.abs(alert.transaction.amount).toFixed(2)}
-                                </span>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Location:</span>
-                                <span className="font-medium ml-2">{alert.transaction.location}</span>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Merchant:</span>
-                                <span className="font-medium ml-2">{alert.transaction.merchant}</span>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Date:</span>
-                                <span className="font-medium ml-2">{alert.transaction.date}</span>
-                              </div>
-                            </div>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {new Date(alert.timestamp).toLocaleString()}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Shield className="h-3 w-3" />
+                            Risk Score: {alert.risk_score}%
+                          </div>
+                        </div>
+                        {alert.transaction_id && (
+                          <div className="mt-2">
+                            <Button variant="outline" size="sm" asChild>
+                              <Link href={`/transactions?highlight=${alert.transaction_id}`}>
+                                View Transaction
+                              </Link>
+                            </Button>
                           </div>
                         )}
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline">
-                            Review Transaction
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => handleDismissAlert(alert.id)}>
-                            Dismiss
-                          </Button>
-                        </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
+                    <div className="flex items-center gap-2 ml-4">
+                      {getAlertBadge(alert.type, alert.risk_score)}
+                      <div className="flex items-center gap-1">
+                        {!alert.read && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => markAsRead(alert.id)}
+                            title="Mark as read"
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm" title="Delete alert">
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Alert</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this alert? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteAlert(alert.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </DashboardLayout>
   )
 }
