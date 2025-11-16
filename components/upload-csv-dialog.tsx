@@ -34,9 +34,7 @@ export function UploadCSVDialog({
 }: UploadCSVDialogProps) {
   const [file, setFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
-  const [uploadStatus, setUploadStatus] = useState<
-    "idle" | "success" | "error"
-  >("idle")
+  const [uploadStatus, setUploadStatus] = useState<"idle" | "success" | "error">("idle")
   const { toast } = useToast()
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,32 +77,66 @@ export function UploadCSVDialog({
 
     try {
       const supabase = getSupabaseBrowserClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const { data: { user }, error: userErr } = await supabase.auth.getUser()
 
-      if (!user) {
+      if (userErr || !user) {
         throw new Error("You must be logged in to upload transactions")
       }
 
+      // 1) Parse CSV text
       const text = await file.text()
       const transactions = parseCSV(text)
 
-      const transactionsToInsert = transactions.map((t) => ({
-        user_id: user.id,
-        date: t.date,
-        description: t.description,
-        amount: (Number(t.amount)),
-        type: Number(t.amount) >= 0 ? "income" : "expense",
-        category: t.category.trim(),
-      }))
+      if (!Array.isArray(transactions) || transactions.length === 0) {
+        throw new Error("CSV appears empty or invalid.")
+      }
 
-      const { error } = await supabase
+      // 2) Map to DB rows (DATE column expects 'YYYY-MM-DD' string)
+      const transactionsToInsert = transactions.map((t) => {
+        const amt = Number(t.amount)
+        return {
+          user_id: user.id,
+          date: t.date, // keep as 'YYYY-MM-DD' since your DB column is DATE
+          description: t.description,
+          amount: amt,
+          type: amt >= 0 ? "income" : "expense",
+          category: (t.category || "").trim(),
+        }
+      })
+
+      // 3) Insert and RETURN the new IDs (this is key!)
+      const { data: inserted, error: insertErr } = await supabase
         .from("transactions")
         .insert(transactionsToInsert)
+        .select("id") // <-- ensure IDs are returned
 
-      if (error) {
-        throw new Error(error.message)
+      if (insertErr) {
+        throw new Error(insertErr.message)
+      }
+
+      const insertedIds = (inserted ?? []).map((r: { id: string }) => r.id)
+
+      // Optional sanity: if nothing inserted, bail early
+      if (insertedIds.length === 0) {
+        // Not throwing—still show success for UX, but warn in console.
+        console.warn("Insert returned no IDs; manifest will not be written.")
+      } else {
+        // 4) Tell the server to write the manifest for History view
+        // (If this fails, transactions are still in DB; only history list is affected.)
+        const res = await fetch("/api/transactions/manifest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filename: file.name,
+            insertedIds,
+            rowCount: insertedIds.length,
+          }),
+        })
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}))
+          console.error("Manifest write failed:", body?.error || res.statusText)
+        }
       }
 
       setUploadStatus("success")
@@ -113,6 +145,7 @@ export function UploadCSVDialog({
         description: `${transactions.length} transactions imported successfully`,
       })
 
+      // Close dialog + refresh parent after a short delay (kept your UX)
       setTimeout(() => {
         onOpenChange(false)
         setFile(null)
@@ -124,9 +157,7 @@ export function UploadCSVDialog({
       toast({
         title: "Upload failed",
         description:
-          error instanceof Error
-            ? error.message
-            : "Failed to parse CSV file",
+          error instanceof Error ? error.message : "Failed to parse CSV file",
         variant: "destructive",
       })
     } finally {

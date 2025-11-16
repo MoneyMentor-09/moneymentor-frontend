@@ -27,6 +27,8 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { UploadCSVDialog } from "@/components/upload-csv-dialog"
+import { UploadHistoryButton } from "@/components/transactions/UploadHistoryButton";
+
 
 interface Transaction {
   id: string
@@ -257,7 +259,7 @@ export default function TransactionsPage() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="space-y-6">
+          <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold">Transactions</h1>
@@ -288,6 +290,7 @@ export default function TransactionsPage() {
               <Upload className="h-4 w-4 mr-2" />
               Upload CSV
             </Button>
+            <UploadHistoryButton onChange={fetchTransactions} />
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
