@@ -21,6 +21,11 @@ const playfair = Playfair_Display({
 export const metadata: Metadata = {
   title: "MoneyMentor - Your Financial Guide",
   description: "Smart financial guidance and money management",
+  icons: {
+    icon: "/letter-m.ico",            // Default icon
+    shortcut: "/letter-m.ico",
+    apple: "/letter-m.png",        // iOS home screen
+  },
   generator: "v0.app",
 };
 

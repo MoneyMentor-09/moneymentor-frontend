@@ -1,11 +1,34 @@
+"use client"
+
 import Link from "next/link"
+import { useTheme } from "next-themes"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Wallet, TrendingUp, MessageSquare, PieChart, Target, Shield } from "lucide-react"
+import {
+  Wallet,
+  TrendingUp,
+  MessageSquare,
+  PieChart,
+  Target,
+  Shield,
+  Sun,
+  Moon,
+} from "lucide-react"
 
 export default function LandingPage() {
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => setMounted(true), [])
+
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark")
+  }
+
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Floating gradients */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-float" />
         <div className="absolute top-40 right-20 w-96 h-96 bg-gradient-to-br from-emerald-400/20 to-cyan-400/20 rounded-full blur-3xl animate-float-delayed" />
@@ -18,15 +41,35 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Wallet className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold text-foreground">Money Mentor</span>
+            <span className="text-2xl font-bold text-foreground">
+              Money Mentor
+            </span>
           </div>
+
           <div className="flex items-center gap-3">
             <Button variant="ghost" asChild>
               <Link href="/login">Login</Link>
             </Button>
+
             <Button asChild>
               <Link href="/signup">Sign Up</Link>
             </Button>
+
+            {/* 🌙 / ☀️ Simple dark/light toggle */}
+            {mounted && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleTheme}
+                aria-label="Toggle theme"
+              >
+                {theme === "dark" ? (
+                  <Sun className="h-5 w-5" />
+                ) : (
+                  <Moon className="h-5 w-5" />
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -38,7 +81,8 @@ export default function LandingPage() {
             Take Control of Your Financial Future
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground mb-10 text-pretty max-w-2xl mx-auto">
-            Smart budgeting, intelligent insights, and AI-powered guidance to help you achieve your financial goals.
+            Smart budgeting, intelligent insights, and AI-powered guidance to
+            help you achieve your financial goals.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button
@@ -67,82 +111,103 @@ export default function LandingPage() {
             Everything you need to manage your money
           </h2>
           <p className="text-lg text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
-            Powerful features designed to give you complete visibility and control over your finances.
+            Powerful features designed to give you complete visibility and
+            control over your finances.
           </p>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Smart Budgeting */}
             <Card className="border-border hover:shadow-lg hover:shadow-primary/10 transition-all hover:-translate-y-1 bg-gradient-to-br from-card to-card/50">
               <CardContent className="pt-6">
                 <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center mb-4">
                   <PieChart className="h-6 w-6 text-blue-600" />
                 </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">Smart Budgeting</h3>
+                <h3 className="text-xl font-semibold text-foreground mb-2">
+                  Smart Budgeting
+                </h3>
                 <p className="text-muted-foreground">
-                  Create and track budgets across multiple categories. Get real-time alerts when you're approaching
-                  limits.
+                  Create and track budgets across multiple categories. Get
+                  real-time alerts when you're approaching limits.
                 </p>
               </CardContent>
             </Card>
 
+            {/* Transaction Tracking */}
             <Card className="border-border hover:shadow-lg hover:shadow-primary/10 transition-all hover:-translate-y-1 bg-gradient-to-br from-card to-card/50">
               <CardContent className="pt-6">
                 <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-emerald-500/20 to-green-500/20 flex items-center justify-center mb-4">
                   <TrendingUp className="h-6 w-6 text-emerald-600" />
                 </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">Transaction Tracking</h3>
+                <h3 className="text-xl font-semibold text-foreground mb-2">
+                  Transaction Tracking
+                </h3>
                 <p className="text-muted-foreground">
-                  Automatically categorize and track all your expenses. Understand where your money goes with detailed
-                  insights.
+                  Automatically categorize and track all your expenses.
+                  Understand where your money goes with detailed insights.
                 </p>
               </CardContent>
             </Card>
 
+            {/* AI Financial Advisor */}
             <Card className="border-border hover:shadow-lg hover:shadow-primary/10 transition-all hover:-translate-y-1 bg-gradient-to-br from-card to-card/50">
               <CardContent className="pt-6">
                 <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center mb-4">
                   <MessageSquare className="h-6 w-6 text-purple-600" />
                 </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">AI Financial Advisor</h3>
+                <h3 className="text-xl font-semibold text-foreground mb-2">
+                  AI Financial Advisor
+                </h3>
                 <p className="text-muted-foreground">
-                  Get personalized financial advice powered by AI. Ask questions and receive instant, actionable
-                  guidance.
+                  Get personalized financial advice powered by AI. Ask questions
+                  and receive instant, actionable guidance.
                 </p>
               </CardContent>
             </Card>
 
+            {/* Savings Goals */}
             <Card className="border-border hover:shadow-lg hover:shadow-primary/10 transition-all hover:-translate-y-1 bg-gradient-to-br from-card to-card/50">
               <CardContent className="pt-6">
                 <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-orange-500/20 to-red-500/20 flex items-center justify-center mb-4">
                   <Target className="h-6 w-6 text-orange-600" />
                 </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">Savings Goals</h3>
+                <h3 className="text-xl font-semibold text-foreground mb-2">
+                  Savings Goals
+                </h3>
                 <p className="text-muted-foreground">
-                  Set and track progress toward your financial goals. Stay motivated with visual progress indicators.
+                  Set and track progress toward your financial goals. Stay
+                  motivated with visual progress indicators.
                 </p>
               </CardContent>
             </Card>
 
+            {/* Smart Alerts */}
             <Card className="border-border hover:shadow-lg hover:shadow-primary/10 transition-all hover:-translate-y-1 bg-gradient-to-br from-card to-card/50">
               <CardContent className="pt-6">
                 <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-yellow-500/20 to-amber-500/20 flex items-center justify-center mb-4">
                   <Shield className="h-6 w-6 text-yellow-600" />
                 </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">Smart Alerts</h3>
+                <h3 className="text-xl font-semibold text-foreground mb-2">
+                  Smart Alerts
+                </h3>
                 <p className="text-muted-foreground">
-                  Receive intelligent notifications about unusual spending, upcoming bills, and budget warnings.
+                  Receive intelligent notifications about unusual spending,
+                  upcoming bills, and budget warnings.
                 </p>
               </CardContent>
             </Card>
 
+            {/* Financial Dashboard */}
             <Card className="border-border hover:shadow-lg hover:shadow-primary/10 transition-all hover:-translate-y-1 bg-gradient-to-br from-card to-card/50">
               <CardContent className="pt-6">
                 <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center mb-4">
                   <Wallet className="h-6 w-6 text-indigo-600" />
                 </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">Financial Dashboard</h3>
+                <h3 className="text-xl font-semibold text-foreground mb-2">
+                  Financial Dashboard
+                </h3>
                 <p className="text-muted-foreground">
-                  View all your financial data at a glance. Beautiful charts and insights help you make better
-                  decisions.
+                  View all your financial data at a glance. Beautiful charts and
+                  insights help you make better decisions.
                 </p>
               </CardContent>
             </Card>
@@ -157,7 +222,8 @@ export default function LandingPage() {
             Ready to transform your financial life?
           </h2>
           <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Join thousands of users who are taking control of their finances with Money Mentor.
+            Join thousands of users who are taking control of their finances
+            with Money Mentor.
           </p>
           <Button
             size="lg"
@@ -175,9 +241,13 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <Wallet className="h-6 w-6 text-primary" />
-              <span className="text-lg font-semibold text-foreground">Money Mentor</span>
+              <span className="text-lg font-semibold text-foreground">
+                Money Mentor
+              </span>
             </div>
-            <p className="text-sm text-muted-foreground">© 2025 Money Mentor. All rights reserved.</p>
+            <p className="text-sm text-muted-foreground">
+              © 2025 Money Mentor. All rights reserved.
+            </p>
           </div>
         </div>
       </footer>

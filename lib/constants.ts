@@ -1,0 +1,1 @@
+export const TRANSACTION_BATCH_BUCKET = 'transaction-batches';
