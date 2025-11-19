@@ -1,207 +1,340 @@
-/* Default theme - already defined in globals.css */
+/* 
+  Accessibility Color Schemes for MoneyMentor
+  -------------------------------------------------
+  - All schemes are designed to meet or exceed WCAG AA
+    for normal text against background.
+  - Light mode: high L (0.95–0.99) backgrounds, low L (≤0.22) foregrounds.
+  - Dark mode: low L (~0.14–0.20) backgrounds, high L (≥0.95) foregrounds.
+  - We keep the *idea* of each scheme (blue/yellow, red/green, grayscale, etc.)
+    while making contrast very safe.
+*/
 
-/* Protanopia (Red-blind) - Uses blue-yellow spectrum */
+/* ------------------------- */
+/* PROTANOPIA (Red-blind)    */
+/* Blue–yellow biased        */
+/* ------------------------- */
+
 [data-color-scheme="protanopia"] {
-  --background: oklch(0.98 0.01 240);
-  --foreground: oklch(0.15 0.02 240);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.15 0.02 240);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.15 0.02 240);
-  --primary: oklch(0.45 0.15 240);
-  --primary-foreground: oklch(0.98 0.01 240);
-  --secondary: oklch(0.75 0.12 60);
-  --secondary-foreground: oklch(0.15 0.02 240);
-  --muted: oklch(0.92 0.01 240);
-  --muted-foreground: oklch(0.5 0.02 240);
-  --accent: oklch(0.75 0.12 60);
-  --accent-foreground: oklch(0.15 0.02 240);
-  --destructive: oklch(0.35 0.15 240);
-  --destructive-foreground: oklch(0.98 0.01 240);
-  --border: oklch(0.88 0.01 240);
-  --input: oklch(0.88 0.01 240);
-  --ring: oklch(0.45 0.15 240);
+  --background: oklch(0.98 0.02 240);
+  --foreground: oklch(0.19 0.03 240);
+
+  --card: oklch(0.99 0.01 240);
+  --card-foreground: oklch(0.19 0.03 240);
+
+  --popover: oklch(0.99 0.01 240);
+  --popover-foreground: oklch(0.19 0.03 240);
+
+  /* Deep blue primary on very light background */
+  --primary: oklch(0.52 0.16 240);
+  --primary-foreground: oklch(0.99 0.01 240);
+
+  /* Yellow-ish secondary with enough contrast */
+  --secondary: oklch(0.92 0.08 90);
+  --secondary-foreground: oklch(0.22 0.05 240);
+
+  --muted: oklch(0.94 0.02 240);
+  --muted-foreground: oklch(0.48 0.04 240);
+
+  --accent: oklch(0.90 0.10 100);
+  --accent-foreground: oklch(0.20 0.03 240);
+
+  /* Destructive as strong magenta-ish */
+  --destructive: oklch(0.55 0.21 350);
+  --destructive-foreground: oklch(0.99 0.01 240);
+
+  --border: oklch(0.88 0.02 240);
+  --input: oklch(0.90 0.02 240);
+  --ring: oklch(0.55 0.16 240);
 }
 
-/* Deuteranopia (Green-blind) - Uses blue-purple-yellow spectrum */
-[data-color-scheme="deuteranopia"] {
-  --background: oklch(0.98 0.01 280);
-  --foreground: oklch(0.15 0.02 280);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.15 0.02 280);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.15 0.02 280);
-  --primary: oklch(0.5 0.18 280);
-  --primary-foreground: oklch(0.98 0.01 280);
-  --secondary: oklch(0.7 0.15 50);
-  --secondary-foreground: oklch(0.15 0.02 280);
-  --muted: oklch(0.92 0.01 280);
-  --muted-foreground: oklch(0.5 0.02 280);
-  --accent: oklch(0.7 0.15 50);
-  --accent-foreground: oklch(0.15 0.02 280);
-  --destructive: oklch(0.4 0.18 280);
-  --destructive-foreground: oklch(0.98 0.01 280);
-  --border: oklch(0.88 0.01 280);
-  --input: oklch(0.88 0.01 280);
-  --ring: oklch(0.5 0.18 280);
-}
+/* Dark mode variant */
 
-/* Tritanopia (Blue-blind) - Uses red-pink-green spectrum */
-[data-color-scheme="tritanopia"] {
-  --background: oklch(0.98 0.01 0);
-  --foreground: oklch(0.15 0.02 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.15 0.02 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.15 0.02 0);
-  --primary: oklch(0.55 0.2 350);
-  --primary-foreground: oklch(0.98 0.01 0);
-  --secondary: oklch(0.65 0.18 140);
-  --secondary-foreground: oklch(0.15 0.02 0);
-  --muted: oklch(0.92 0.01 0);
-  --muted-foreground: oklch(0.5 0.02 0);
-  --accent: oklch(0.65 0.18 140);
-  --accent-foreground: oklch(0.15 0.02 0);
-  --destructive: oklch(0.45 0.2 350);
-  --destructive-foreground: oklch(0.98 0.01 0);
-  --border: oklch(0.88 0.01 0);
-  --input: oklch(0.88 0.01 0);
-  --ring: oklch(0.55 0.2 350);
-}
-
-/* Monochrome (Complete color blindness) - Grayscale only */
-[data-color-scheme="monochrome"] {
-  --background: oklch(0.98 0 0);
-  --foreground: oklch(0.15 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.15 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.15 0 0);
-  --primary: oklch(0.3 0 0);
-  --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.75 0 0);
-  --secondary-foreground: oklch(0.15 0 0);
-  --muted: oklch(0.92 0 0);
-  --muted-foreground: oklch(0.5 0 0);
-  --accent: oklch(0.75 0 0);
-  --accent-foreground: oklch(0.15 0 0);
-  --destructive: oklch(0.25 0 0);
-  --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.88 0 0);
-  --input: oklch(0.88 0 0);
-  --ring: oklch(0.3 0 0);
-}
-
-/* High Contrast - Enhanced contrast ratios */
-[data-color-scheme="high-contrast"] {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0 0 0);
-  --primary: oklch(0.2 0 0);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.85 0 0);
-  --secondary-foreground: oklch(0 0 0);
-  --muted: oklch(0.95 0 0);
-  --muted-foreground: oklch(0.3 0 0);
-  --accent: oklch(0.85 0 0);
-  --accent-foreground: oklch(0 0 0);
-  --destructive: oklch(0.15 0 0);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0 0 0);
-  --input: oklch(0.95 0 0);
-  --ring: oklch(0.2 0 0);
-}
-
-/* Dark mode variants for each scheme */
 .dark[data-color-scheme="protanopia"] {
-  --background: oklch(0.15 0.02 240);
-  --foreground: oklch(0.98 0.01 240);
-  --card: oklch(0.15 0.02 240);
-  --card-foreground: oklch(0.98 0.01 240);
-  --primary: oklch(0.65 0.15 240);
-  --primary-foreground: oklch(0.15 0.02 240);
-  --secondary: oklch(0.55 0.12 60);
+  --background: oklch(0.16 0.03 240);
+  --foreground: oklch(0.97 0.01 240);
+
+  --card: oklch(0.18 0.03 240);
+  --card-foreground: oklch(0.97 0.01 240);
+
+  --popover: oklch(0.18 0.03 240);
+  --popover-foreground: oklch(0.97 0.01 240);
+
+  --primary: oklch(0.70 0.16 240);
+  --primary-foreground: oklch(0.15 0.03 240);
+
+  --secondary: oklch(0.50 0.10 90);
   --secondary-foreground: oklch(0.98 0.01 240);
-  --muted: oklch(0.25 0.02 240);
-  --muted-foreground: oklch(0.7 0.02 240);
-  --accent: oklch(0.55 0.12 60);
-  --accent-foreground: oklch(0.98 0.01 240);
-  --border: oklch(0.3 0.02 240);
-  --input: oklch(0.3 0.02 240);
-  --ring: oklch(0.65 0.15 240);
+
+  --muted: oklch(0.25 0.03 240);
+  --muted-foreground: oklch(0.78 0.03 240);
+
+  --accent: oklch(0.60 0.12 100);
+  --accent-foreground: oklch(0.14 0.03 240);
+
+  --destructive: oklch(0.56 0.20 350);
+  --destructive-foreground: oklch(0.98 0.01 240);
+
+  --border: oklch(0.32 0.03 240);
+  --input: oklch(0.28 0.03 240);
+  --ring: oklch(0.70 0.16 240);
+}
+
+/* ------------------------- */
+/* DEUTERANOPIA (Green-blind)*/
+/* Purple–yellow biased      */
+/* ------------------------- */
+
+[data-color-scheme="deuteranopia"] {
+  --background: oklch(0.98 0.02 280);
+  --foreground: oklch(0.19 0.03 280);
+
+  --card: oklch(0.99 0.01 280);
+  --card-foreground: oklch(0.19 0.03 280);
+
+  --popover: oklch(0.99 0.01 280);
+  --popover-foreground: oklch(0.19 0.03 280);
+
+  --primary: oklch(0.53 0.18 280);
+  --primary-foreground: oklch(0.99 0.01 280);
+
+  --secondary: oklch(0.92 0.08 80);
+  --secondary-foreground: oklch(0.22 0.05 280);
+
+  --muted: oklch(0.94 0.02 280);
+  --muted-foreground: oklch(0.48 0.04 280);
+
+  --accent: oklch(0.89 0.10 80);
+  --accent-foreground: oklch(0.20 0.03 280);
+
+  --destructive: oklch(0.55 0.21 20);
+  --destructive-foreground: oklch(0.99 0.01 280);
+
+  --border: oklch(0.88 0.02 280);
+  --input: oklch(0.90 0.02 280);
+  --ring: oklch(0.55 0.18 280);
 }
 
 .dark[data-color-scheme="deuteranopia"] {
-  --background: oklch(0.15 0.02 280);
-  --foreground: oklch(0.98 0.01 280);
-  --card: oklch(0.15 0.02 280);
-  --card-foreground: oklch(0.98 0.01 280);
-  --primary: oklch(0.6 0.18 280);
-  --primary-foreground: oklch(0.15 0.02 280);
-  --secondary: oklch(0.6 0.15 50);
+  --background: oklch(0.16 0.03 280);
+  --foreground: oklch(0.97 0.01 280);
+
+  --card: oklch(0.18 0.03 280);
+  --card-foreground: oklch(0.97 0.01 280);
+
+  --popover: oklch(0.18 0.03 280);
+  --popover-foreground: oklch(0.97 0.01 280);
+
+  --primary: oklch(0.70 0.18 280);
+  --primary-foreground: oklch(0.15 0.03 280);
+
+  --secondary: oklch(0.50 0.10 80);
   --secondary-foreground: oklch(0.98 0.01 280);
-  --muted: oklch(0.25 0.02 280);
-  --muted-foreground: oklch(0.7 0.02 280);
-  --accent: oklch(0.6 0.15 50);
-  --accent-foreground: oklch(0.98 0.01 280);
-  --border: oklch(0.3 0.02 280);
-  --input: oklch(0.3 0.02 280);
-  --ring: oklch(0.6 0.18 280);
+
+  --muted: oklch(0.25 0.03 280);
+  --muted-foreground: oklch(0.78 0.03 280);
+
+  --accent: oklch(0.60 0.12 80);
+  --accent-foreground: oklch(0.14 0.03 280);
+
+  --destructive: oklch(0.56 0.20 20);
+  --destructive-foreground: oklch(0.98 0.01 280);
+
+  --border: oklch(0.32 0.03 280);
+  --input: oklch(0.28 0.03 280);
+  --ring: oklch(0.70 0.18 280);
+}
+
+/* ------------------------- */
+/* TRITANOPIA (Blue-blind)   */
+/* Red–green biased          */
+/* ------------------------- */
+
+[data-color-scheme="tritanopia"] {
+  --background: oklch(0.98 0.02 20);
+  --foreground: oklch(0.19 0.03 20);
+
+  --card: oklch(0.99 0.01 20);
+  --card-foreground: oklch(0.19 0.03 20);
+
+  --popover: oklch(0.99 0.01 20);
+  --popover-foreground: oklch(0.19 0.03 20);
+
+  --primary: oklch(0.55 0.20 20);
+  --primary-foreground: oklch(0.99 0.01 20);
+
+  --secondary: oklch(0.90 0.15 140);
+  --secondary-foreground: oklch(0.22 0.05 20);
+
+  --muted: oklch(0.94 0.02 20);
+  --muted-foreground: oklch(0.48 0.04 20);
+
+  --accent: oklch(0.88 0.16 140);
+  --accent-foreground: oklch(0.20 0.03 20);
+
+  --destructive: oklch(0.54 0.22 30);
+  --destructive-foreground: oklch(0.99 0.01 20);
+
+  --border: oklch(0.88 0.02 20);
+  --input: oklch(0.90 0.02 20);
+  --ring: oklch(0.55 0.20 20);
 }
 
 .dark[data-color-scheme="tritanopia"] {
-  --background: oklch(0.15 0.02 0);
-  --foreground: oklch(0.98 0.01 0);
-  --card: oklch(0.15 0.02 0);
-  --card-foreground: oklch(0.98 0.01 0);
-  --primary: oklch(0.65 0.2 350);
-  --primary-foreground: oklch(0.15 0.02 0);
-  --secondary: oklch(0.6 0.18 140);
-  --secondary-foreground: oklch(0.98 0.01 0);
-  --muted: oklch(0.25 0.02 0);
-  --muted-foreground: oklch(0.7 0.02 0);
-  --accent: oklch(0.6 0.18 140);
-  --accent-foreground: oklch(0.98 0.01 0);
-  --border: oklch(0.3 0.02 0);
-  --input: oklch(0.3 0.02 0);
-  --ring: oklch(0.65 0.2 350);
+  --background: oklch(0.16 0.03 20);
+  --foreground: oklch(0.97 0.01 20);
+
+  --card: oklch(0.18 0.03 20);
+  --card-foreground: oklch(0.97 0.01 20);
+
+  --popover: oklch(0.18 0.03 20);
+  --popover-foreground: oklch(0.97 0.01 20);
+
+  --primary: oklch(0.70 0.20 20);
+  --primary-foreground: oklch(0.15 0.03 20);
+
+  --secondary: oklch(0.52 0.16 140);
+  --secondary-foreground: oklch(0.98 0.01 20);
+
+  --muted: oklch(0.25 0.03 20);
+  --muted-foreground: oklch(0.78 0.03 20);
+
+  --accent: oklch(0.60 0.18 140);
+  --accent-foreground: oklch(0.14 0.03 20);
+
+  --destructive: oklch(0.56 0.22 30);
+  --destructive-foreground: oklch(0.98 0.01 20);
+
+  --border: oklch(0.32 0.03 20);
+  --input: oklch(0.28 0.03 20);
+  --ring: oklch(0.70 0.20 20);
+}
+
+/* ------------------------- */
+/* MONOCHROME (Grayscale)    */
+/* AAA-leaning               */
+/* ------------------------- */
+
+[data-color-scheme="monochrome"] {
+  --background: oklch(0.98 0 0);
+  --foreground: oklch(0.16 0 0);
+
+  --card: oklch(0.99 0 0);
+  --card-foreground: oklch(0.16 0 0);
+
+  --popover: oklch(0.99 0 0);
+  --popover-foreground: oklch(0.16 0 0);
+
+  --primary: oklch(0.20 0 0);
+  --primary-foreground: oklch(0.98 0 0);
+
+  --secondary: oklch(0.90 0 0);
+  --secondary-foreground: oklch(0.18 0 0);
+
+  --muted: oklch(0.93 0 0);
+  --muted-foreground: oklch(0.40 0 0);
+
+  --accent: oklch(0.85 0 0);
+  --accent-foreground: oklch(0.18 0 0);
+
+  --destructive: oklch(0.30 0 0);
+  --destructive-foreground: oklch(0.98 0 0);
+
+  --border: oklch(0.86 0 0);
+  --input: oklch(0.90 0 0);
+  --ring: oklch(0.30 0 0);
 }
 
 .dark[data-color-scheme="monochrome"] {
-  --background: oklch(0.15 0 0);
+  --background: oklch(0.14 0 0);
   --foreground: oklch(0.98 0 0);
-  --card: oklch(0.15 0 0);
+
+  --card: oklch(0.18 0 0);
   --card-foreground: oklch(0.98 0 0);
-  --primary: oklch(0.7 0 0);
-  --primary-foreground: oklch(0.15 0 0);
-  --secondary: oklch(0.4 0 0);
+
+  --popover: oklch(0.18 0 0);
+  --popover-foreground: oklch(0.98 0 0);
+
+  --primary: oklch(0.90 0 0);
+  --primary-foreground: oklch(0.12 0 0);
+
+  --secondary: oklch(0.30 0 0);
   --secondary-foreground: oklch(0.98 0 0);
+
   --muted: oklch(0.25 0 0);
-  --muted-foreground: oklch(0.7 0 0);
-  --accent: oklch(0.4 0 0);
+  --muted-foreground: oklch(0.80 0 0);
+
+  --accent: oklch(0.70 0 0);
+  --accent-foreground: oklch(0.14 0 0);
+
+  --destructive: oklch(0.40 0 0);
+  --destructive-foreground: oklch(0.98 0 0);
+
+  --border: oklch(0.32 0 0);
+  --input: oklch(0.26 0 0);
+  --ring: oklch(0.85 0 0);
+}
+
+/* ------------------------- */
+/* HIGH CONTRAST             */
+/* Max readability           */
+/* ------------------------- */
+
+[data-color-scheme="high-contrast"] {
+  --background: oklch(0.99 0 0);
+  --foreground: oklch(0.12 0 0);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.12 0 0);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.12 0 0);
+
+  --primary: oklch(0.30 0 0);
+  --primary-foreground: oklch(0.99 0 0);
+
+  --secondary: oklch(0.92 0 0);
+  --secondary-foreground: oklch(0.14 0 0);
+
+  --muted: oklch(0.94 0 0);
+  --muted-foreground: oklch(0.30 0 0);
+
+  --accent: oklch(0.15 0 0);
   --accent-foreground: oklch(0.98 0 0);
-  --border: oklch(0.3 0 0);
-  --input: oklch(0.3 0 0);
-  --ring: oklch(0.7 0 0);
+
+  --destructive: oklch(0.25 0.02 30);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  --border: oklch(0.30 0 0);
+  --input: oklch(0.94 0 0);
+  --ring: oklch(0.20 0 0);
 }
 
 .dark[data-color-scheme="high-contrast"] {
-  --background: oklch(0 0 0);
-  --foreground: oklch(1 0 0);
-  --card: oklch(0 0 0);
-  --card-foreground: oklch(1 0 0);
-  --primary: oklch(0.85 0 0);
-  --primary-foreground: oklch(0 0 0);
-  --secondary: oklch(0.25 0 0);
-  --secondary-foreground: oklch(1 0 0);
-  --muted: oklch(0.15 0 0);
-  --muted-foreground: oklch(0.75 0 0);
-  --accent: oklch(0.25 0 0);
-  --accent-foreground: oklch(1 0 0);
-  --border: oklch(1 0 0);
+  --background: oklch(0.05 0 0);
+  --foreground: oklch(0.99 0 0);
+
+  --card: oklch(0.08 0 0);
+  --card-foreground: oklch(0.99 0 0);
+
+  --popover: oklch(0.08 0 0);
+  --popover-foreground: oklch(0.99 0 0);
+
+  --primary: oklch(0.95 0 0);
+  --primary-foreground: oklch(0.05 0 0);
+
+  --secondary: oklch(0.20 0 0);
+  --secondary-foreground: oklch(0.99 0 0);
+
+  --muted: oklch(0.18 0 0);
+  --muted-foreground: oklch(0.90 0 0);
+
+  --accent: oklch(0.85 0 0);
+  --accent-foreground: oklch(0.05 0 0);
+
+  --destructive: oklch(0.40 0.02 30);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  --border: oklch(0.80 0 0);
   --input: oklch(0.15 0 0);
-  --ring: oklch(0.85 0 0);
+  --ring: oklch(0.95 0 0);
 }
