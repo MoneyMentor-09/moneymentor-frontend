@@ -38,7 +38,8 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <Providers>
           {children}
-         <Toaster position="top-right" richColors /> {/* ✅ Enables global popup messages */}
+          {/* Enables global popup messages */}
+          <Toaster position="top-right" richColors />
         </Providers>
       </body>
     </html>
