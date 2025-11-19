@@ -2,8 +2,9 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter, Playfair_Display } from "next/font/google"
 import "./globals.css"
+import "./accessability/accessibility-themes.css"
 import { Providers } from "@/components/providers"
-import { Toaster } from "@/components/ui/sonner" // ✅ make sure this path matches where your Toaster component is located
+import { Toaster } from "@/components/ui/sonner"
 
 const inter = Inter({
   subsets: ["latin"],
