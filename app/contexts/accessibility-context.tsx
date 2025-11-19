@@ -2,8 +2,15 @@
 
 import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
+import { useTheme } from "next-themes"
 
-export type ColorScheme = "default" | "protanopia" | "deuteranopia" | "tritanopia" | "monochrome" | "high-contrast"
+export type ColorScheme =
+  | "default"
+  | "protanopia"
+  | "deuteranopia"
+  | "tritanopia"
+  | "monochrome"
+  | "high-contrast"
 
 interface AccessibilityContextType {
   colorScheme: ColorScheme
@@ -15,55 +22,52 @@ interface AccessibilityContextType {
 
 const AccessibilityContext = createContext<AccessibilityContextType | undefined>(undefined)
 
-export function AccessibilityProvider({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+const COLOR_SCHEME_STORAGE_KEY = "mm-color-scheme"
+
+export function AccessibilityProvider({ children }: { children: React.ReactNode }) {
+  const { theme, setTheme, systemTheme } = useTheme()
   const [colorScheme, setColorSchemeState] = useState<ColorScheme>("default")
-  const [isDarkMode, setIsDarkModeState] = useState(false)
 
-  // Load saved settings from localStorage on mount
-  useEffect(() => {
-    const savedScheme = localStorage.getItem("accessibility-color-scheme") as ColorScheme
-    const savedDarkMode = localStorage.getItem("accessibility-dark-mode") === "true"
-
-    if (savedScheme) {
-      setColorSchemeState(savedScheme)
-      document.documentElement.setAttribute("data-color-scheme", savedScheme)
-    }
-
-    if (savedDarkMode) {
-      setIsDarkModeState(true)
-      document.documentElement.classList.add("dark")
-    }
-  }, [])
-
-  const setColorScheme = (scheme: ColorScheme) => {
+  // --- helper to sync the attribute + localStorage ---
+  const applyColorScheme = (scheme: ColorScheme) => {
     setColorSchemeState(scheme)
-    localStorage.setItem("accessibility-color-scheme", scheme)
-    document.documentElement.setAttribute("data-color-scheme", scheme)
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(COLOR_SCHEME_STORAGE_KEY, scheme)
+      document.documentElement.setAttribute("data-color-scheme", scheme)
+    }
   }
 
+  // On first mount, hydrate from localStorage (or default)
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const stored = window.localStorage.getItem(COLOR_SCHEME_STORAGE_KEY) as ColorScheme | null
+    const initial = stored ?? "default"
+    applyColorScheme(initial)
+  }, [])
+
+  // --- dark mode wiring using next-themes ---
+  const resolvedTheme = theme === "system" ? systemTheme : theme
+  const isDarkMode = resolvedTheme === "dark"
+
   const setIsDarkMode = (isDark: boolean) => {
-    setIsDarkModeState(isDark)
-    localStorage.setItem("accessibility-dark-mode", String(isDark))
-    if (isDark) {
-      document.documentElement.classList.add("dark")
-    } else {
-      document.documentElement.classList.remove("dark")
-    }
+    setTheme(isDark ? "dark" : "light")
   }
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode)
   }
 
-  return (
-    <AccessibilityContext.Provider value={{ colorScheme, setColorScheme, isDarkMode, setIsDarkMode, toggleDarkMode }}>
-      {children}
-    </AccessibilityContext.Provider>
-  )
+  const value: AccessibilityContextType = {
+    colorScheme,
+    setColorScheme: applyColorScheme,
+    isDarkMode: !!isDarkMode,
+    setIsDarkMode,
+    toggleDarkMode,
+  }
+
+  return <AccessibilityContext.Provider value={value}>{children}</AccessibilityContext.Provider>
 }
 
 export function useAccessibility() {
