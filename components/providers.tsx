@@ -8,23 +8,33 @@ import { useInactivityTimer } from "@/hooks/use-inactivity-timer"
 import { InactivityWarningModal } from "@/components/inactivity-warning-modal"
 import { FloatingChatWidget } from "@/components/floating-chat-widget"
 import { usePathname } from "next/navigation"
+import { AccessibilityProvider } from "@/contexts/accessibility-context"
 
 function InactivityWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { showWarning, countdown, dismissWarning } = useInactivityTimer()
 
   // Don't show inactivity timer on public pages
-  const isPublicPage = ["/", "/login", "/signup"].includes(pathname)
+  const isPublicPage =
+    pathname?.startsWith("/auth") ||
+    pathname === "/" ||
+    pathname?.startsWith("/about") ||
+    pathname?.startsWith("/contact")
+
+  if (isPublicPage) {
+    return (
+      <>
+        {children}
+        <FloatingChatWidget />
+      </>
+    )
+  }
 
   return (
     <>
       {children}
-      {!isPublicPage && (
-        <>
-          <InactivityWarningModal open={showWarning} countdown={countdown} onContinue={dismissWarning} />
-          <FloatingChatWidget />
-        </>
-      )}
+      <FloatingChatWidget />
+      <InactivityWarningModal isOpen={showWarning} countdown={countdown} onDismiss={dismissWarning} />
     </>
   )
 }
@@ -32,10 +42,12 @@ function InactivityWrapper({ children }: { children: React.ReactNode }) {
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-      <InactivityWrapper>
-        {children}
-        <Toaster />
-      </InactivityWrapper>
+      <AccessibilityProvider>
+        <InactivityWrapper>
+          {children}
+          <Toaster />
+        </InactivityWrapper>
+      </AccessibilityProvider>
     </ThemeProvider>
   )
 }
