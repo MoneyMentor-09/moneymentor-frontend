@@ -224,6 +224,17 @@ export default function AlertsPage() {
         return true
     }
   })
+  .sort((a, b) => {
+      // unread first
+      if (a.read === b.read) {
+        // if both same read status, newest first
+        return (
+          new Date(b.timestamp).getTime() -
+          new Date(a.timestamp).getTime()
+        )
+      }
+      return a.read ? 1 : -1 // a.read=true goes after unread
+    })
 
   const unreadCount = alerts.filter(alert => !alert.read).length
   const highRiskCount = alerts.filter(alert => alert.risk_score > 70).length
