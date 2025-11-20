@@ -42,12 +42,12 @@ export async function POST(req: Request) {
       const transactions = txData ?? [];
 
       const income = transactions
-        .filter(t => t.type === "income")
-        .reduce((s, t) => s + Number(t.amount), 0);
+        .filter((t: { type: string; }) => t.type === "income")
+        .reduce((s: number, t: { amount: any; }) => s + Number(t.amount), 0);
 
       const expenses = transactions
-        .filter(t => t.type === "expense")
-        .reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
+        .filter((t: { type: string; }) => t.type === "expense")
+        .reduce((s: number, t: { amount: any; }) => s + Math.abs(Number(t.amount)), 0);
 
       const balance = income - expenses;
       const savingsRate = income > 0 ? Math.round((balance / income) * 100) : 0;
@@ -73,7 +73,7 @@ export async function POST(req: Request) {
         .eq("user_id", user.id);
 
       const budgets = budgetData ?? [];
-      const budgetStatus = budgets.map(b => ({
+      const budgetStatus = budgets.map((b: { category: any; spent: any; amount: any; }) => ({
         category: b.category,
         spent: Number(b.spent ?? 0),
         limit: Number(b.amount ?? 0),
