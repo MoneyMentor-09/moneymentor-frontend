@@ -28,6 +28,7 @@ import {
 import { toast } from "sonner"
 import { UploadCSVDialog } from "@/components/upload-csv-dialog"
 import { UploadHistoryButton } from "@/components/transactions/UploadHistoryButton";
+import { useSearchParams } from "next/navigation"
 
 
 interface Transaction {
@@ -69,6 +70,10 @@ export default function TransactionsPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
+  const searchParams = useSearchParams()
+  const [highlightId, setHighlightId] = useState<string | null>(null)
+  const [highlightedTransaction, setHighlightedTransaction] = useState<Transaction | null>(null)
+  const [isHighlightDialogOpen, setIsHighlightDialogOpen] = useState(false)
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
     description: "",
@@ -105,6 +110,30 @@ export default function TransactionsPage() {
       setLoading(false)
     }
   }
+
+   useEffect(() => {
+    const idFromUrl = searchParams.get("highlight")
+
+    if (!idFromUrl || transactions.length === 0) {
+      setHighlightId(null)
+      setHighlightedTransaction(null)
+      setIsHighlightDialogOpen(false)
+      return
+    }
+
+    const match = transactions.find(t => t.id === idFromUrl)
+    if (match) {
+      setHighlightId(idFromUrl)
+      setHighlightedTransaction(match)
+      setIsHighlightDialogOpen(true)
+    } else {
+      // No matching transaction (maybe deleted)
+      setHighlightId(null)
+      setHighlightedTransaction(null)
+      setIsHighlightDialogOpen(false)
+    }
+  }, [searchParams, transactions])
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -560,7 +589,7 @@ export default function TransactionsPage() {
                   </TableHeader>
                   <TableBody>
                     {filteredTransactions.map((transaction) => (
-                      <TableRow key={transaction.id}>
+                      <TableRow key={transaction.id} className={highlightId === transaction.id ? "bg-yellow-50" : ""}>
                         <TableCell>
                           <input 
                             type="checkbox"
@@ -732,6 +761,59 @@ export default function TransactionsPage() {
           onSuccess={fetchTransactions}
         />
       </div>
+              {/* Highlighted Transaction Dialog (from Alerts "View Transaction") */}
+        {highlightedTransaction && (
+          <Dialog open={isHighlightDialogOpen} onOpenChange={setIsHighlightDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Suspicious Transaction</DialogTitle>
+                <DialogDescription>
+                  This transaction was flagged from your alerts.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="font-medium">Date</span>
+                  <span>{new Date(highlightedTransaction.date).toLocaleDateString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Description</span>
+                  <span>{highlightedTransaction.description}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Category</span>
+                  <span>{highlightedTransaction.category}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Type</span>
+                  <span>{highlightedTransaction.type}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Amount</span>
+                  <span className={highlightedTransaction.type === "expense" ? "text-red-600" : "text-green-600"}>
+                    {highlightedTransaction.amount < 0 ? "-" : "+"}${Math.abs(highlightedTransaction.amount).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 mt-4">
+                <Button variant="outline" onClick={() => setIsHighlightDialogOpen(false)}>
+                  Close
+                </Button>
+                {/* Optional: jump to edit from here */}
+                <Button
+                  onClick={() => {
+                    setIsHighlightDialogOpen(false)
+                    handleEdit(highlightedTransaction)
+                  }}
+                >
+                  Edit Transaction
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
     </DashboardLayout>
   )
 }
