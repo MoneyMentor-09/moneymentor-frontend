@@ -1,4 +1,4 @@
-import { AccessibilityPanel } from "@/components/accessibility-panel"
+import { AccessibilityPanel } from "@/components/ui/accessibility-panel"
 
 export default function AccessibilityPage() {
   return (
