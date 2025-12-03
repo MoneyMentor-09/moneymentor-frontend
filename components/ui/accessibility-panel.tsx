@@ -1,6 +1,6 @@
 "use client"
 
-import { useAccessibility, type ColorScheme } from "@/contexts/accessibility-context"
+import { useAccessibility, type ColorScheme } from "@/app/contexts/accessibility-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckIcon, EyeIcon } from "lucide-react"
