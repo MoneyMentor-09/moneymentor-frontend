@@ -6,7 +6,17 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from "@/components/ui/alert-dialog"
 import { 
   AlertTriangle, 
   Shield, 
@@ -15,7 +25,6 @@ import {
   Clock,
   TrendingUp,
   DollarSign,
-  MapPin,
   CreditCard
 } from "lucide-react"
 import { toast } from "sonner"
@@ -126,15 +135,15 @@ export default function AlertsPage() {
   const getAlertIcon = (type: string, riskScore: number) => {
     switch (type) {
       case 'fraud':
-        return <Shield className="h-5 w-5 text-red-500" />
+        return <Shield className="h-5 w-5 text-red-500 flex-shrink-0" />
       case 'unusual_spending':
-        return <TrendingUp className="h-5 w-5 text-orange-500" />
+        return <TrendingUp className="h-5 w-5 text-orange-500 flex-shrink-0" />
       case 'budget_warning':
-        return <DollarSign className="h-5 w-5 text-yellow-500" />
+        return <DollarSign className="h-5 w-5 text-yellow-500 flex-shrink-0" />
       case 'low_balance':
-        return <CreditCard className="h-5 w-5 text-blue-500" />
+        return <CreditCard className="h-5 w-5 text-blue-500 flex-shrink-0" />
       default:
-        return <AlertTriangle className="h-5 w-5 text-gray-500" />
+        return <AlertTriangle className="h-5 w-5 text-gray-500 flex-shrink-0" />
     }
   }
 
@@ -158,7 +167,6 @@ export default function AlertsPage() {
     }
   }
 
-  // Filter alerts
   const filteredAlerts = alerts.filter(alert => {
     switch (filter) {
       case 'unread':
@@ -172,8 +180,8 @@ export default function AlertsPage() {
     }
   })
 
-  const unreadCount = alerts.filter(alert => !alert.read).length
-  const highRiskCount = alerts.filter(alert => alert.risk_score > 70).length
+  const unreadCount = alerts.filter(a => !a.read).length
+  const highRiskCount = alerts.filter(a => a.risk_score > 70).length
 
   if (loading) {
     return (
@@ -194,99 +202,85 @@ export default function AlertsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+
+        {/* HEADER (Responsive) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold">Alerts</h1>
             <p className="text-muted-foreground">Security and spending notifications</p>
           </div>
+
           {unreadCount > 0 && (
-            <Button variant="outline" onClick={markAllAsRead}>
+            <Button
+              variant="outline"
+              onClick={markAllAsRead}
+              className="w-full sm:w-auto"
+            >
               <CheckCircle2 className="h-4 w-4 mr-2" />
               Mark All as Read
             </Button>
           )}
         </div>
 
-        {/* Alert Summary */}
-        <div className="grid gap-4 md:grid-cols-3">
+        {/* SUMMARY CARDS */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Unread Alerts</CardTitle>
               <AlertTriangle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{unreadCount}</div>
-              <p className="text-xs text-muted-foreground">
-                Require your attention
-              </p>
+              <p className="text-xs text-muted-foreground">Require your attention</p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">High Risk</CardTitle>
               <Shield className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">{highRiskCount}</div>
-              <p className="text-xs text-muted-foreground">
-                Potential fraud detected
-              </p>
+              <p className="text-xs text-muted-foreground">Potential fraud detected</p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total Alerts</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{alerts.length}</div>
-              <p className="text-xs text-muted-foreground">
-                All time alerts
-              </p>
+              <p className="text-xs text-muted-foreground">All time alerts</p>
             </CardContent>
           </Card>
+
         </div>
 
-        {/* Filter Tabs */}
+        {/* FILTER BUTTONS */}
         <Card>
           <CardContent className="pt-6">
-            <div className="flex gap-2">
-              <Button
-                variant={filter === 'all' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilter('all')}
-              >
+            <div className="flex flex-wrap gap-2">
+              <Button variant={filter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setFilter('all')}>
                 All ({alerts.length})
               </Button>
-              <Button
-                variant={filter === 'unread' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilter('unread')}
-              >
+              <Button variant={filter === 'unread' ? 'default' : 'outline'} size="sm" onClick={() => setFilter('unread')}>
                 Unread ({unreadCount})
               </Button>
-              <Button
-                variant={filter === 'fraud' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilter('fraud')}
-              >
+              <Button variant={filter === 'fraud' ? 'default' : 'outline'} size="sm" onClick={() => setFilter('fraud')}>
                 Fraud ({highRiskCount})
               </Button>
-              <Button
-                variant={filter === 'budget' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilter('budget')}
-              >
+              <Button variant={filter === 'budget' ? 'default' : 'outline'} size="sm" onClick={() => setFilter('budget')}>
                 Budget ({alerts.filter(a => a.type === 'budget_warning').length})
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Alerts List */}
+        {/* ALERT LIST */}
         {filteredAlerts.length === 0 ? (
           <Card>
             <CardContent className="text-center py-12">
@@ -295,52 +289,56 @@ export default function AlertsPage() {
                 {filter === 'all' ? 'No alerts yet' : `No ${filter} alerts`}
               </h3>
               <p className="text-muted-foreground">
-                {filter === 'all' 
+                {filter === 'all'
                   ? "You're all caught up! New alerts will appear here when detected."
-                  : `No ${filter} alerts found. Try selecting a different filter.`
-                }
+                  : `No ${filter} alerts found. Try selecting a different filter.`}
               </p>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-4">
-            {filteredAlerts.map((alert) => (
-              <Card 
-                key={alert.id} 
+            {filteredAlerts.map(alert => (
+              <Card
+                key={alert.id}
                 className={`transition-all hover:shadow-md ${getAlertColor(alert.type, alert.risk_score)} ${
-                  !alert.read ? 'border-l-4 border-l-primary' : ''
+                  !alert.read ? "border-l-4 border-l-primary" : ""
                 }`}
               >
                 <CardContent className="pt-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-4 flex-1">
-                      <div className="flex-shrink-0 mt-1">
+
+                  <div className="flex flex-col sm:flex-row justify-between gap-4">
+
+                    {/* LEFT SIDE */}
+                    <div className="flex items-start gap-4 flex-1 min-w-0">
+                      <div className="mt-1 flex-shrink-0">
                         {getAlertIcon(alert.type, alert.risk_score)}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="text-sm font-medium text-foreground">
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-sm font-medium text-foreground break-words">
                             {alert.message}
                           </h3>
                           {!alert.read && (
-                            <Badge variant="outline" className="text-xs">
-                              New
-                            </Badge>
+                            <Badge variant="outline" className="text-xs">New</Badge>
                           )}
                         </div>
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+
+                        <div className="flex flex-col sm:flex-row gap-2 text-xs text-muted-foreground mt-1">
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
                             {new Date(alert.timestamp).toLocaleString()}
                           </div>
+
                           <div className="flex items-center gap-1">
                             <Shield className="h-3 w-3" />
                             Risk Score: {alert.risk_score}%
                           </div>
                         </div>
+
                         {alert.transaction_id && (
-                          <div className="mt-2">
-                            <Button variant="outline" size="sm" asChild>
+                          <div className="mt-3">
+                            <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
                               <Link href={`/transactions?highlight=${alert.transaction_id}`}>
                                 View Transaction
                               </Link>
@@ -348,47 +346,53 @@ export default function AlertsPage() {
                           </div>
                         )}
                       </div>
+
                     </div>
-                    <div className="flex items-center gap-2 ml-4">
+
+                    {/* RIGHT SIDE BUTTONS */}
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+
                       {getAlertBadge(alert.type, alert.risk_score)}
-                      <div className="flex items-center gap-1">
-                        {!alert.read && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => markAsRead(alert.id)}
-                            title="Mark as read"
-                          >
-                            <CheckCircle2 className="h-4 w-4" />
+
+                      {!alert.read && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => markAsRead(alert.id)}
+                          title="Mark as read"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                        </Button>
+                      )}
+
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <XCircle className="h-4 w-4" />
                           </Button>
-                        )}
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="sm" title="Delete alert">
-                              <XCircle className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Alert</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete this alert? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => deleteAlert(alert.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
+                        </AlertDialogTrigger>
+
+                        <AlertDialogContent className="max-w-[95vw] sm:max-w-lg">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Alert</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete this alert?
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteAlert(alert.id)}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+
                     </div>
+
                   </div>
+
                 </CardContent>
               </Card>
             ))}
