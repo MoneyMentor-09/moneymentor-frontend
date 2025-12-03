@@ -17,18 +17,23 @@ import {
 } from "lucide-react"
 
 export default function LandingPage() {
+  // Theme management using next-themes
   const { theme, setTheme } = useTheme()
+  
+  // Track component mount state to prevent hydration mismatch
   const [mounted, setMounted] = useState(false)
 
+  // Set mounted to true after initial render
   useEffect(() => setMounted(true), [])
 
+  // Toggle between dark and light themes
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark")
   }
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Floating gradients */}
+      {/* Animated floating gradient background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-float" />
         <div className="absolute top-40 right-20 w-96 h-96 bg-gradient-to-br from-emerald-400/20 to-cyan-400/20 rounded-full blur-3xl animate-float-delayed" />
@@ -36,16 +41,19 @@ export default function LandingPage() {
         <div className="absolute top-1/2 right-1/3 w-64 h-64 bg-gradient-to-br from-violet-400/20 to-indigo-400/20 rounded-full blur-3xl animate-float" />
       </div>
 
-      {/* Header */}
+      {/* Navigation Header */}
       <header className="border-b border-border relative z-10 bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          {/* Logo and brand name */}
           <div className="flex items-center gap-2">
-            <Wallet className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold text-foreground">
+            <Wallet className="h-6 w-6 text-primary sm:h-8 sm:w-8" />
+            <span className="text-lg font-bold text-foreground sm:text-2xl">
               Money Mentor
             </span>
           </div>
 
+
+          {/* Navigation buttons and theme toggle */}
           <div className="flex items-center gap-3">
             <Button variant="ghost" asChild>
               <Link href="/login">Login</Link>
@@ -55,7 +63,7 @@ export default function LandingPage() {
               <Link href="/signup">Sign Up</Link>
             </Button>
 
-            {/* 🌙 / ☀️ Simple dark/light toggle */}
+            {/* Dark/Light mode toggle button - only render after mount to prevent hydration issues */}
             {mounted && (
               <Button
                 variant="ghost"
@@ -74,16 +82,21 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Hero Section */}
+      {/* Hero Section - Main headline and CTA */}
       <section className="container mx-auto px-4 py-20 md:py-32 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
+          {/* Main headline with gradient text effect */}
           <h1 className="text-5xl md:text-7xl font-bold mb-6 text-balance bg-gradient-to-r from-foreground via-primary to-foreground bg-clip-text text-transparent">
             Take Control of Your Financial Future
           </h1>
+          
+          {/* Subheadline */}
           <p className="text-xl md:text-2xl text-muted-foreground mb-10 text-pretty max-w-2xl mx-auto">
             Smart budgeting, intelligent insights, and AI-powered guidance to
             help you achieve your financial goals.
           </p>
+          
+          {/* Primary call-to-action buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button
               size="lg"
@@ -104,9 +117,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Features Section - Product capabilities showcase */}
       <section className="container mx-auto px-4 py-20 bg-muted/30 relative z-10">
         <div className="max-w-6xl mx-auto">
+          {/* Features section heading */}
           <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-4">
             Everything you need to manage your money
           </h2>
@@ -115,8 +129,10 @@ export default function LandingPage() {
             control over your finances.
           </p>
 
+          {/* Features grid - 3 columns on large screens */}
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Smart Budgeting */}
+            
+            {/* Feature Card: Smart Budgeting */}
             <Card className="border-border hover:shadow-lg hover:shadow-primary/10 transition-all hover:-translate-y-1 bg-gradient-to-br from-card to-card/50">
               <CardContent className="pt-6">
                 <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center mb-4">
@@ -132,7 +148,7 @@ export default function LandingPage() {
               </CardContent>
             </Card>
 
-            {/* Transaction Tracking */}
+            {/* Feature Card: Transaction Tracking */}
             <Card className="border-border hover:shadow-lg hover:shadow-primary/10 transition-all hover:-translate-y-1 bg-gradient-to-br from-card to-card/50">
               <CardContent className="pt-6">
                 <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-emerald-500/20 to-green-500/20 flex items-center justify-center mb-4">
@@ -148,7 +164,7 @@ export default function LandingPage() {
               </CardContent>
             </Card>
 
-            {/* AI Financial Advisor */}
+            {/* Feature Card: AI Financial Advisor */}
             <Card className="border-border hover:shadow-lg hover:shadow-primary/10 transition-all hover:-translate-y-1 bg-gradient-to-br from-card to-card/50">
               <CardContent className="pt-6">
                 <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center mb-4">
@@ -164,7 +180,7 @@ export default function LandingPage() {
               </CardContent>
             </Card>
 
-            {/* Savings Goals */}
+            {/* Feature Card: Savings Goals */}
             <Card className="border-border hover:shadow-lg hover:shadow-primary/10 transition-all hover:-translate-y-1 bg-gradient-to-br from-card to-card/50">
               <CardContent className="pt-6">
                 <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-orange-500/20 to-red-500/20 flex items-center justify-center mb-4">
@@ -180,7 +196,7 @@ export default function LandingPage() {
               </CardContent>
             </Card>
 
-            {/* Smart Alerts */}
+            {/* Feature Card: Smart Alerts */}
             <Card className="border-border hover:shadow-lg hover:shadow-primary/10 transition-all hover:-translate-y-1 bg-gradient-to-br from-card to-card/50">
               <CardContent className="pt-6">
                 <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-yellow-500/20 to-amber-500/20 flex items-center justify-center mb-4">
@@ -196,7 +212,7 @@ export default function LandingPage() {
               </CardContent>
             </Card>
 
-            {/* Financial Dashboard */}
+            {/* Feature Card: Financial Dashboard */}
             <Card className="border-border hover:shadow-lg hover:shadow-primary/10 transition-all hover:-translate-y-1 bg-gradient-to-br from-card to-card/50">
               <CardContent className="pt-6">
                 <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center mb-4">
@@ -215,16 +231,21 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* Final Call-to-Action Section */}
       <section className="container mx-auto px-4 py-20 relative z-10">
         <div className="max-w-4xl mx-auto text-center bg-gradient-to-br from-primary/10 via-primary/5 to-transparent rounded-2xl p-12 border-2 border-primary/30 shadow-xl shadow-primary/10">
+          {/* CTA headline */}
           <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4 text-balance">
             Ready to transform your financial life?
           </h2>
+          
+          {/* CTA description */}
           <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
             Join thousands of users who are taking control of their finances
             with Money Mentor.
           </p>
+          
+          {/* Final sign-up button */}
           <Button
             size="lg"
             className="text-lg px-8 py-6 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all"
@@ -239,12 +260,15 @@ export default function LandingPage() {
       <footer className="border-t border-border mt-20 relative z-10 bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            {/* Footer logo and brand */}
             <div className="flex items-center gap-2">
               <Wallet className="h-6 w-6 text-primary" />
               <span className="text-lg font-semibold text-foreground">
                 Money Mentor
               </span>
             </div>
+            
+            {/* Copyright notice */}
             <p className="text-sm text-muted-foreground">
               © 2025 Money Mentor. All rights reserved.
             </p>

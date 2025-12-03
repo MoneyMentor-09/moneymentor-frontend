@@ -288,7 +288,7 @@ export default function TransactionsPage() {
   if (loading) {
     return (
       <DashboardLayout>
-          <div className="space-y-6">
+        <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold">Transactions</h1>
@@ -304,38 +304,47 @@ export default function TransactionsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+
+        {/* HEADER */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold">Transactions</h1>
             <p className="text-muted-foreground">Manage your financial transactions</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleExport}>
+
+          {/* Buttons responsive */}
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Button variant="outline" onClick={handleExport} className="w-full sm:w-auto">
               <Download className="h-4 w-4 mr-2" />
               Export CSV
             </Button>
-            <Button variant="outline" onClick={() => setIsUploadDialogOpen(true)}>
+
+            <Button variant="outline" onClick={() => setIsUploadDialogOpen(true)} className="w-full sm:w-auto">
               <Upload className="h-4 w-4 mr-2" />
               Upload CSV
             </Button>
-            <UploadHistoryButton onChange={fetchTransactions} />
+
+            <div className="w-full sm:w-auto">
+              <UploadHistoryButton onChange={fetchTransactions} />
+            </div>
+
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
-                <Button>
+                <Button className="w-full sm:w-auto">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Transaction
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-[95vw] sm:max-w-lg">
                 <DialogHeader>
                   <DialogTitle>Add New Transaction</DialogTitle>
                   <DialogDescription>
                     Enter the details for your new transaction.
                   </DialogDescription>
                 </DialogHeader>
+
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="date">Date</Label>
                       <Input
@@ -359,6 +368,7 @@ export default function TransactionsPage() {
                       />
                     </div>
                   </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="description">Description</Label>
                     <Input
@@ -369,7 +379,8 @@ export default function TransactionsPage() {
                       required
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="type">Type</Label>
                       <Select value={form.type} onValueChange={(value: "income" | "expense") => setForm({ ...form, type: value })}>
@@ -398,6 +409,7 @@ export default function TransactionsPage() {
                       </Select>
                     </div>
                   </div>
+
                   <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                       Cancel
@@ -410,7 +422,7 @@ export default function TransactionsPage() {
           </div>
         </div>
 
-        {/* Filters */}
+        {/* FILTERS */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -418,12 +430,13 @@ export default function TransactionsPage() {
               Filters
             </CardTitle>
           </CardHeader>
+
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="search">Search</Label>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="search"
                     placeholder="Search transactions..."
@@ -433,6 +446,7 @@ export default function TransactionsPage() {
                   />
                 </div>
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="type-filter">Type</Label>
                 <Select value={filterType} onValueChange={setFilterType}>
@@ -446,6 +460,7 @@ export default function TransactionsPage() {
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="category-filter">Category</Label>
                 <Select value={filterCategory} onValueChange={setFilterCategory}>
@@ -462,73 +477,71 @@ export default function TransactionsPage() {
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="space-y-2">
                 <Label>Results</Label>
-                <div className="flex items-center h-10 px-3 py-2 text-sm text-muted-foreground bg-muted rounded-md">
-                  {filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? 's' : ''}
+                <div className="flex items-center justify-center sm:justify-start h-10 px-3 py-2 text-sm text-muted-foreground bg-muted rounded-md">
+                  {filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? "s" : ""}
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Transactions Table */}
+        {/* TRANSACTION TABLE */}
         <Card>
-          <CardHeader className="flex items-center justify-between">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <CardTitle>Transaction History</CardTitle>
-              <CardDescription>
-                View and manage all your financial transactions
-              </CardDescription>
+              <CardDescription>View and manage all your financial transactions</CardDescription>
             </div>
+
             {transactions.length > 0 && (
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive" disabled={selectedTransactions.length === 0}>
+                    <Button variant="destructive" disabled={selectedTransactions.length === 0} className="w-full sm:w-auto">
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete Selected
                     </Button>
                   </AlertDialogTrigger>
-                  <AlertDialogContent>
+
+                  <AlertDialogContent className="max-w-[95vw] sm:max-w-lg">
                     <AlertDialogHeader>
                       <AlertDialogTitle>Delete Selected Transactions</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Are you sure you want to delete {selectedTransactions.length} selected transaction{selectedTransactions.length !== 1 ? 's' : ''}? This action cannot be undone.
+                        Are you sure you want to delete {selectedTransactions.length} selected transaction{selectedTransactions.length !== 1 ? "s" : ""}? This action cannot be undone.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
+
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleDeleteSelected}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
+                      <AlertDialogAction onClick={handleDeleteSelected}>
                         Delete
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-                
+
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive" disabled={transactions.length === 0}>
+                    <Button variant="destructive" disabled={transactions.length === 0} className="w-full sm:w-auto">
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete All
                     </Button>
                   </AlertDialogTrigger>
-                  <AlertDialogContent>
+
+                  <AlertDialogContent className="max-w-[95vw] sm:max-w-lg">
                     <AlertDialogHeader>
                       <AlertDialogTitle>Delete All Transactions</AlertDialogTitle>
                       <AlertDialogDescription>
                         Are you sure you want to delete all transactions? This action cannot be undone.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
+
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleDeleteAll}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
+                      <AlertDialogAction onClick={handleDeleteAll}>
                         Delete All
                       </AlertDialogAction>
                     </AlertDialogFooter>
@@ -537,24 +550,28 @@ export default function TransactionsPage() {
               </div>
             )}
           </CardHeader>
+
           <CardContent>
+            {/* Empty State */}
             {filteredTransactions.length === 0 ? (
               <div className="text-center py-12">
                 <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No transactions found</h3>
+
                 <p className="text-muted-foreground mb-4">
-                  {transactions.length === 0 
+                  {transactions.length === 0
                     ? "Start by adding your first transaction or uploading a CSV file."
-                    : "Try adjusting your search or filter criteria."
-                  }
+                    : "Try adjusting your search or filter criteria."}
                 </p>
+
                 {transactions.length === 0 && (
-                  <div className="flex gap-2 justify-center">
-                    <Button onClick={() => setIsAddDialogOpen(true)}>
+                  <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                    <Button onClick={() => setIsAddDialogOpen(true)} className="w-full sm:w-auto">
                       <Plus className="h-4 w-4 mr-2" />
                       Add Transaction
                     </Button>
-                    <Button variant="outline" onClick={() => setIsUploadDialogOpen(true)}>
+
+                    <Button variant="outline" onClick={() => setIsUploadDialogOpen(true)} className="w-full sm:w-auto">
                       <Upload className="h-4 w-4 mr-2" />
                       Upload CSV
                     </Button>
@@ -562,23 +579,25 @@ export default function TransactionsPage() {
                 )}
               </div>
             ) : (
-              <div className="rounded-md border">
-                <Table>
+              /* RESPONSIVE TABLE WRAPPER */
+              <div className="rounded-md border overflow-x-auto">
+                <Table className="min-w-[900px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>
-                        <input 
+                        <input
                           type="checkbox"
                           checked={selectedTransactions.length === transactions.length && transactions.length > 0}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              setSelectedTransactions(transactions.map(t => t.id))
+                              setSelectedTransactions(transactions.map((t) => t.id))
                             } else {
                               setSelectedTransactions([])
                             }
                           }}
                         />
                       </TableHead>
+
                       <TableHead>Date</TableHead>
                       <TableHead>Description</TableHead>
                       <TableHead>Category</TableHead>
@@ -587,74 +606,79 @@ export default function TransactionsPage() {
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
+
                   <TableBody>
                     {filteredTransactions.map((transaction) => (
                       <TableRow key={transaction.id} className={highlightId === transaction.id ? "bg-yellow-50" : ""}>
                         <TableCell>
-                          <input 
+                          <input
                             type="checkbox"
                             checked={selectedTransactions.includes(transaction.id)}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setSelectedTransactions(prev => [...prev, transaction.id])
+                                setSelectedTransactions((prev) => [...prev, transaction.id])
                               } else {
-                                setSelectedTransactions(prev => prev.filter(id => id !== transaction.id))
+                                setSelectedTransactions((prev) => prev.filter((id) => id !== transaction.id))
                               }
                             }}
                           />
                         </TableCell>
+
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-muted-foreground" />
                             {new Date(transaction.date).toLocaleDateString()}
                           </div>
                         </TableCell>
-                        <TableCell className="font-medium">{transaction.description}</TableCell>
-                        <TableCell>
+
+                        <TableCell className="whitespace-normal break-words max-w-[200px] font-medium">
+                          {transaction.description}
+                        </TableCell>
+
+                        <TableCell className="whitespace-normal break-words max-w-[150px]">
                           <div className="flex items-center gap-2">
                             <Tag className="h-4 w-4 text-muted-foreground" />
                             {transaction.category}
                           </div>
                         </TableCell>
+
                         <TableCell>
-                          <Badge variant={transaction.type === 'income' ? 'default' : 'secondary'}>
+                          <Badge variant={transaction.type === "income" ? "default" : "secondary"}>
                             <Type className="h-3 w-3 mr-1" />
                             {transaction.type}
                           </Badge>
                         </TableCell>
+
                         <TableCell className="text-right">
-                          <span className={`font-medium ${transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                            {transaction.amount < 0 ? '-' : '+'}${Math.abs(transaction.amount).toLocaleString()}
+                          <span className={`font-medium ${transaction.type === "income" ? "text-green-600" : "text-red-600"}`}>
+                            {transaction.amount < 0 ? "-" : "+"}${Math.abs(transaction.amount).toLocaleString()}
                           </span>
                         </TableCell>
+
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(transaction)}
-                            >
+                          <div className="flex items-center justify-end gap-2 sm:gap-3 flex-wrap">
+                            <Button variant="ghost" size="sm" onClick={() => handleEdit(transaction)}>
                               <Edit className="h-4 w-4" />
                             </Button>
+
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button variant="ghost" size="sm">
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </AlertDialogTrigger>
-                              <AlertDialogContent>
+
+                              <AlertDialogContent className="max-w-[95vw] sm:max-w-lg">
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
                                   <AlertDialogDescription>
                                     Are you sure you want to delete this transaction? This action cannot be undone.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
+
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDelete(transaction.id)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
+                                  <AlertDialogAction onClick={() => handleDelete(transaction.id)}>
                                     Delete
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
@@ -671,17 +695,16 @@ export default function TransactionsPage() {
           </CardContent>
         </Card>
 
-        {/* Edit Transaction Dialog */}
+        {/* EDIT TRANSACTION DIALOG */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-[95vw] sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Edit Transaction</DialogTitle>
-              <DialogDescription>
-                Update the details for this transaction.
-              </DialogDescription>
+              <DialogDescription>Update the details for this transaction.</DialogDescription>
             </DialogHeader>
+
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-date">Date</Label>
                   <Input
@@ -692,6 +715,7 @@ export default function TransactionsPage() {
                     required
                   />
                 </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="edit-amount">Amount</Label>
                   <Input
@@ -705,6 +729,7 @@ export default function TransactionsPage() {
                   />
                 </div>
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="edit-description">Description</Label>
                 <Input
@@ -715,7 +740,8 @@ export default function TransactionsPage() {
                   required
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-type">Type</Label>
                   <Select value={form.type} onValueChange={(value: "income" | "expense") => setForm({ ...form, type: value })}>
@@ -728,6 +754,7 @@ export default function TransactionsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="edit-category">Category</Label>
                   <Select value={form.category} onValueChange={(value) => setForm({ ...form, category: value })}>
@@ -744,6 +771,7 @@ export default function TransactionsPage() {
                   </Select>
                 </div>
               </div>
+
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                   Cancel
@@ -754,9 +782,9 @@ export default function TransactionsPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Upload CSV Dialog */}
-        <UploadCSVDialog 
-          open={isUploadDialogOpen} 
+        {/* UPLOAD CSV */}
+        <UploadCSVDialog
+          open={isUploadDialogOpen}
           onOpenChange={setIsUploadDialogOpen}
           onSuccess={fetchTransactions}
         />
