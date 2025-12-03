@@ -29,6 +29,8 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
+import { analyzeSuspiciousTransactions, SuspiciousAlert, Transaction as Tx } from "@/lib/transactions/suspicious"
+
 
 interface Alert {
   id: string
@@ -38,39 +40,69 @@ interface Alert {
   read: boolean
   type: 'fraud' | 'unusual_spending' | 'budget_warning' | 'low_balance'
   transaction_id?: string
+  synthetic?: boolean
 }
 
 export default function AlertsPage() {
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'unread' | 'fraud' | 'budget'>('all')
+  const [suspiciousAlerts, setSuspiciousAlerts] = useState<SuspiciousAlert[]>([])
+
 
   useEffect(() => {
     fetchAlerts()
   }, [])
 
   const fetchAlerts = async () => {
-    try {
-      const supabase = getSupabaseBrowserClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) return
+  try {
+    const supabase = getSupabaseBrowserClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
-      const { data, error } = await supabase
-        .from('alerts')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('timestamp', { ascending: false })
+    if (!user) return
 
-      if (error) throw error
-      setAlerts(data || [])
-    } catch (error) {
-      toast.error("Failed to fetch alerts")
-      console.error(error)
-    } finally {
-      setLoading(false)
-    }
+    // 1) Load existing alerts from DB (unchanged logic)
+    const { data: alertData, error: alertError } = await supabase
+      .from('alerts')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('timestamp', { ascending: false })
+
+    if (alertError) throw alertError
+    setAlerts(alertData || [])
+
+    // 2) Load recent transactions for suspicious analysis
+    //    Example: last 90 days
+    const ninetyDaysAgo = new Date()
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+    const cutoff = ninetyDaysAgo.toISOString().split('T')[0] // 'YYYY-MM-DD'
+
+    const { data: txData, error: txError } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', user.id)
+      .gte('date', cutoff)
+      .order('date', { ascending: false })
+
+    if (txError) throw txError
+
+    const txs = (txData || []) as Tx[]
+
+    // 3) Run suspicious analysis
+    const suspicious = analyzeSuspiciousTransactions(txs, {
+      highAmountThreshold: 1000,
+      smallAmountThreshold: 10,
+      manySmallCountThreshold: 5,
+    })
+
+    setSuspiciousAlerts(suspicious)
+  } catch (error) {
+    toast.error("Failed to fetch alerts")
+    console.error(error)
+  } finally {
+    setLoading(false)
   }
+}
 
   const markAsRead = async (alertId: string) => {
     try {
@@ -167,18 +199,51 @@ export default function AlertsPage() {
     }
   }
 
-  const filteredAlerts = alerts.filter(alert => {
+    // Map suspicious transaction patterns into alert-like objects for the UI
+  const suspiciousAsAlerts: Alert[] = suspiciousAlerts.map((s) => ({
+    id: `suspicious-${s.id}`,
+    message: s.message,
+    risk_score: s.riskScore,
+    // Use the date of the first transaction involved, or "now" as fallback
+    timestamp:
+      s.transactions[0]?.date
+        ? new Date(s.transactions[0].date).toISOString()
+        : new Date().toISOString(),
+    read: false,
+    // classify them so they show up under "fraud"/"unusual spending"
+    type: s.rule === "high-amount" ? "fraud" : "unusual_spending",
+    transaction_id: s.transactions[0]?.id,
+    synthetic: true,
+  }))
+
+  // Combined "view" of alerts: synthetic suspicious + real DB alerts
+  const combinedAlerts: Alert[] = [...suspiciousAsAlerts, ...alerts]
+
+  // Filter alerts (DB + synthetic suspicious)
+  const filteredAlerts = combinedAlerts.filter(alert => {
     switch (filter) {
-      case 'unread':
+      case "unread":
         return !alert.read
-      case 'fraud':
-        return alert.type === 'fraud' || alert.risk_score > 70
-      case 'budget':
-        return alert.type === 'budget_warning'
+      case "fraud":
+        return alert.type === "fraud" || alert.risk_score > 70
+      case "budget":
+        // keep this strictly to budget warnings
+        return alert.type === "budget_warning"
       default:
         return true
     }
   })
+  .sort((a, b) => {
+      // unread first
+      if (a.read === b.read) {
+        // if both same read status, newest first
+        return (
+          new Date(b.timestamp).getTime() -
+          new Date(a.timestamp).getTime()
+        )
+      }
+      return a.read ? 1 : -1 // a.read=true goes after unread
+    })
 
   const unreadCount = alerts.filter(a => !a.read).length
   const highRiskCount = alerts.filter(a => a.risk_score > 70).length
@@ -353,42 +418,44 @@ export default function AlertsPage() {
                     <div className="flex items-center gap-2 flex-wrap justify-end">
 
                       {getAlertBadge(alert.type, alert.risk_score)}
-
-                      {!alert.read && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => markAsRead(alert.id)}
-                          title="Mark as read"
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                        </Button>
-                      )}
-
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <XCircle className="h-4 w-4" />
+                      <div className="flex items-center gap-1">
+                        {!alert.read && !alert.synthetic && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => markAsRead(alert.id)}
+                            title="Mark as read"
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
                           </Button>
-                        </AlertDialogTrigger>
-
-                        <AlertDialogContent className="max-w-[95vw] sm:max-w-lg">
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Alert</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete this alert?
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => deleteAlert(alert.id)}>
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-
+                        )}
+                        {!alert.synthetic && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="sm" title="Delete alert">
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Alert</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this alert? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteAlert(alert.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </div>
                     </div>
 
                   </div>
