@@ -8,7 +8,7 @@ import { useInactivityTimer } from "@/hooks/use-inactivity-timer"
 import { InactivityWarningModal } from "@/components/inactivity-warning-modal"
 import { FloatingChatWidget } from "@/components/floating-chat-widget"
 import { usePathname } from "next/navigation"
-import { AccessibilityProvider } from "@/contexts/accessibility-context"
+import { AccessibilityProvider } from "@/app/contexts/accessibility-context"
 
 function InactivityWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
