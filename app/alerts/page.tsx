@@ -318,8 +318,10 @@ export default function AlertsPage() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{alerts.length}</div>
-              <p className="text-xs text-muted-foreground">All time alerts</p>
+              <div className="text-2xl font-bold">{combinedAlerts.length}</div>
+              <p className="text-xs text-muted-foreground">
+                All time alerts
+              </p>
             </CardContent>
           </Card>
 
@@ -328,9 +330,13 @@ export default function AlertsPage() {
         {/* FILTER BUTTONS */}
         <Card>
           <CardContent className="pt-6">
-            <div className="flex flex-wrap gap-2">
-              <Button variant={filter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setFilter('all')}>
-                All ({alerts.length})
+            <div className="flex gap-2">
+              <Button
+                variant={filter === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('all')}
+              >
+                All ({combinedAlerts.length})
               </Button>
               <Button variant={filter === 'unread' ? 'default' : 'outline'} size="sm" onClick={() => setFilter('unread')}>
                 Unread ({unreadCount})

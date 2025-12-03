@@ -30,6 +30,7 @@ import { UploadCSVDialog } from "@/components/upload-csv-dialog"
 import { UploadHistoryButton } from "@/components/transactions/UploadHistoryButton";
 import { useSearchParams } from "next/navigation"
 
+
 interface Transaction {
   id: string
   date: string
