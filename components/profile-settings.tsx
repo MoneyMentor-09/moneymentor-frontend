@@ -24,6 +24,52 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { useAccessibility, type ColorScheme } from "@/contexts/accessibility-context"
+
+// 🎨 Emoji-based color scheme presets
+const colorSchemes: Array<{
+  id: ColorScheme
+  name: string
+  description: string
+  icon: string
+}> = [
+  {
+    id: "default",
+    name: "Default",
+    description: "Standard color palette",
+    icon: "🎨",
+  },
+  {
+    id: "protanopia",
+    name: "Protanopia",
+    description: "Red-blind friendly scheme",
+    icon: "🔴",
+  },
+  {
+    id: "deuteranopia",
+    name: "Deuteranopia",
+    description: "Green-blind friendly scheme",
+    icon: "🟢",
+  },
+  {
+    id: "tritanopia",
+    name: "Tritanopia",
+    description: "Blue-blind friendly scheme",
+    icon: "🔵",
+  },
+  {
+    id: "monochrome",
+    name: "Monochrome",
+    description: "Grayscale, no color reliance",
+    icon: "⚫",
+  },
+  {
+    id: "high-contrast",
+    name: "High Contrast",
+    description: "Extra-strong contrast for low vision",
+    icon: "⚡",
+  },
+]
 
 interface ProfileSettingsProps {
   user: any
@@ -49,6 +95,9 @@ export function ProfileSettings({ user, profile, stats }: ProfileSettingsProps) 
 
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(profile?.two_factor_enabled || false)
   const [sessionTimeout, setSessionTimeout] = useState(profile?.session_timeout || "30")
+
+  // 🌈 Accessibility + theme state (from context)
+  const { colorScheme, setColorScheme, isDarkMode, toggleDarkMode } = useAccessibility()
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -206,6 +255,7 @@ export function ProfileSettings({ user, profile, stats }: ProfileSettingsProps) 
         </div>
       )}
 
+      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-6">
@@ -235,6 +285,7 @@ export function ProfileSettings({ user, profile, stats }: ProfileSettingsProps) 
         </Card>
       </div>
 
+      {/* Profile info */}
       <Card>
         <CardHeader>
           <CardTitle>Profile Information</CardTitle>
@@ -313,6 +364,7 @@ export function ProfileSettings({ user, profile, stats }: ProfileSettingsProps) 
         </CardContent>
       </Card>
 
+      {/* Security Settings */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -355,6 +407,68 @@ export function ProfileSettings({ user, profile, stats }: ProfileSettingsProps) 
         </CardContent>
       </Card>
 
+      {/* 🌈 Accessibility & Theme (NEW) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Accessibility & Theme</CardTitle>
+          <CardDescription>
+            Adjust dark mode and WCAG-aligned color schemes to better match your vision needs.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Dark mode toggle */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="dark-mode-toggle">Dark Mode</Label>
+              <p className="text-sm text-muted-foreground">
+                Switch between light and dark backgrounds for better comfort.
+              </p>
+            </div>
+            <Switch
+              id="dark-mode-toggle"
+              checked={isDarkMode}
+              onCheckedChange={toggleDarkMode}
+            />
+          </div>
+
+          {/* Color schemes */}
+          <div className="space-y-3">
+            <div>
+              <Label>Color scheme</Label>
+              <p className="text-xs text-muted-foreground">
+                These presets are designed to support different types of color vision while keeping contrast at or
+                above WCAG AA.
+              </p>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              {colorSchemes.map((scheme) => (
+                <button
+                  key={scheme.id}
+                  type="button"
+                  onClick={() => setColorScheme(scheme.id)}
+                  className={`flex items-start gap-3 rounded-md border px-3 py-2 text-left text-sm transition ${
+                    colorScheme === scheme.id
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:bg-muted/60"
+                  }`}
+                  aria-pressed={colorScheme === scheme.id}
+                >
+                  <span className="text-xl" aria-hidden="true">
+                    {scheme.icon}
+                  </span>
+                  <span>
+                    <span className="font-medium block">{scheme.name}</span>
+                    <span className="text-xs text-muted-foreground">{scheme.description}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Danger Zone */}
       <Card className="border-destructive">
         <CardHeader>
           <CardTitle className="text-destructive">Danger Zone</CardTitle>
@@ -416,3 +530,4 @@ export function ProfileSettings({ user, profile, stats }: ProfileSettingsProps) 
     </div>
   )
 }
+
