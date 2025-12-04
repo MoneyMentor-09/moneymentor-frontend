@@ -8,7 +8,7 @@ import { useInactivityTimer } from "@/hooks/use-inactivity-timer"
 import { InactivityWarningModal } from "@/components/inactivity-warning-modal"
 import { FloatingChatWidget } from "@/components/floating-chat-widget"
 import { usePathname } from "next/navigation"
-import { AccessibilityProvider } from "@/app/contexts/accessibility-context"
+import { AccessibilityProvider } from "@/contexts/accessibility-context" // ✅ note path
 
 function InactivityWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -22,7 +22,11 @@ function InactivityWrapper({ children }: { children: React.ReactNode }) {
       {children}
       {!isPublicPage && (
         <>
-          <InactivityWarningModal open={showWarning} countdown={countdown} onContinue={dismissWarning} />
+          <InactivityWarningModal
+            open={showWarning}
+            countdown={countdown}
+            onContinue={dismissWarning}
+          />
           <FloatingChatWidget />
         </>
       )}
@@ -32,11 +36,18 @@ function InactivityWrapper({ children }: { children: React.ReactNode }) {
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-      <InactivityWrapper>
-        {children}
-        <Toaster />
-      </InactivityWrapper>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <AccessibilityProvider>
+        <InactivityWrapper>
+          {children}
+          <Toaster />
+        </InactivityWrapper>
+      </AccessibilityProvider>
     </ThemeProvider>
   )
 }
