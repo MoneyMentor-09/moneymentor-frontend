@@ -118,7 +118,7 @@ export default function DashboardPage() {
     .filter(t => t.type === 'expense')
     .reduce((sum, t) => sum + t.amount, 0)
 
-  const totalBalance = totalIncome - totalExpenses
+  const totalBalance = totalIncome + (totalExpenses)
 
   // Calculate fraud score (simplified)
   const fraudScore = alerts.length > 0 

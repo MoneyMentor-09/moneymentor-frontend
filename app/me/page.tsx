@@ -141,35 +141,50 @@ export default function ProfilePage() {
   }
 
   const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      toast.error("New passwords do not match")
-      return
-    }
+  e.preventDefault()
 
-    if (passwordForm.newPassword.length < 8) {
-      toast.error("Password must be at least 8 characters long")
-      return
-    }
-
-    try {
-      const supabase = getSupabaseBrowserClient()
-      
-      const { error } = await supabase.auth.updateUser({
-        password: passwordForm.newPassword
-      })
-
-      if (error) throw error
-
-      toast.success("Password updated successfully")
-      setIsPasswordDialogOpen(false)
-      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" })
-    } catch (error) {
-      toast.error("Failed to update password")
-      console.error(error)
-    }
+  // 1️⃣ Check new password and confirmation
+  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    toast.error("New passwords do not match")
+    return
   }
+
+  if (passwordForm.newPassword.length < 8) {
+    toast.error("Password must be at least 8 characters long")
+    return
+  }
+
+  try {
+    const supabase = getSupabaseBrowserClient()
+
+    // 2️⃣ Verify current password by signing in
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: passwordForm.currentPassword
+    })
+
+    if (verifyError) {
+      toast.error("Current password is incorrect")
+      return
+    }
+
+    // 3️⃣ Update to the new password
+    const { error } = await supabase.auth.updateUser({
+      password: passwordForm.newPassword
+    })
+
+    if (error) throw error
+
+    toast.success("Password updated successfully")
+    setIsPasswordDialogOpen(false)
+    setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" })
+
+  } catch (error) {
+    toast.error("Failed to update password")
+    console.error(error)
+  }
+}
+
 
   const handleDeleteAccount = async () => {
     try {
@@ -351,8 +366,30 @@ export default function ProfilePage() {
                       Update your account password.
                     </DialogDescription>
                   </DialogHeader>
-                  <form onSubmit={handleChangePassword} className="space-y-4">
+                  <form onSubmit={handleChangePassword} className="space-y-2">
                     <div className="space-y-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="currentPassword">Current Password</Label>
+                        <div className="relative">
+                          <Input
+                            id="currentPassword"
+                            type={showCurrentPassword ? "text" : "password"}
+                            value={passwordForm.currentPassword}
+                            onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                            required
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          >
+                            {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </div>
+
                       <Label htmlFor="newPassword">New Password</Label>
                       <div className="relative">
                         <Input

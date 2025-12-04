@@ -1,8 +1,21 @@
+// app/api/chat/route.ts
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import OpenAI from "openai";
 
 export const maxDuration = 30;
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// Format number as USD currency
+function fmtUSD(n: number) {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Math.abs(n || 0));
+}
+
+// Parse amount strings like "$1,234.56" or numbers
+function parseAmount(amount: string | number) {
+  if (typeof amount === "number") return amount;
+  const cleaned = amount.replace(/[^0-9.-]+/g, "");
+  return Number(cleaned) || 0;
+}
 
 export async function POST(req: Request) {
   try {
@@ -24,10 +37,9 @@ export async function POST(req: Request) {
     const user = authData.user;
 
     // -----------------------------
-    // Fetch Financial Summary
+    // Fetch Financial Summary (90-day)
     // -----------------------------
     let data = body.financialSummary;
-
     if (!data) {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - 90);
@@ -35,57 +47,59 @@ export async function POST(req: Request) {
 
       const { data: txData } = await supabase
         .from("transactions")
-        .select("amount, type, category, date")
+        .select("amount, type, category, date, description")
         .eq("user_id", user.id)
         .gte("date", startISO);
 
       const transactions = txData ?? [];
 
       const income = transactions
-        .filter((t: { type: string; }) => t.type === "income")
-        .reduce((s: number, t: { amount: any; }) => s + Number(t.amount), 0);
+        .filter(t => t.type === "income")
+        .reduce((sum, t) => sum + parseAmount(t.amount), 0);
 
       const expenses = transactions
-        .filter((t: { type: string; }) => t.type === "expense")
-        .reduce((s: number, t: { amount: any; }) => s + Math.abs(Number(t.amount)), 0);
+        .filter(t => t.type === "expense")
+        .reduce((sum, t) => sum + Math.abs(parseAmount(t.amount)), 0);
 
-      const balance = income - expenses;
+      const balance = income + (expenses);
+
+      // Correct savings rate
       const savingsRate = income > 0 ? Math.round((balance / income) * 100) : 0;
 
-      // --- Top Categories (keep negative amounts) ---
+      // Top expense categories
       const categoryTotals: Record<string, number> = {};
       for (const tx of transactions) {
         if (tx.type === "expense") {
           const cat = tx.category || "Other";
-          categoryTotals[cat] = (categoryTotals[cat] ?? 0) + Number(tx.amount);
+          categoryTotals[cat] = (categoryTotals[cat] ?? 0) + parseAmount(tx.amount);
         }
       }
 
       const topCategories = Object.entries(categoryTotals)
         .map(([category, amount]) => ({ category, amount }))
-        .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)) // largest spending first
-        .slice(0, 5);
+        .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
+        .slice(0, 10);
 
-      // --- Budgets ---
+      // Budgets
       const { data: budgetData } = await supabase
         .from("budgets")
         .select("category, amount, spent")
         .eq("user_id", user.id);
 
       const budgets = budgetData ?? [];
-      const budgetStatus = budgets.map((b: { category: any; spent: any; amount: any; }) => ({
+      const budgetStatus = budgets.map(b => ({
         category: b.category,
         spent: Number(b.spent ?? 0),
         limit: Number(b.amount ?? 0),
       }));
 
-      // --- Alerts ---
+      // Alerts
       const { data: alertData } = await supabase
         .from("alerts")
         .select("*")
         .eq("user_id", user.id)
         .order("timestamp", { ascending: false })
-        .limit(5);
+        .limit(10);
 
       const alerts = alertData ?? [];
 
@@ -102,142 +116,119 @@ export async function POST(req: Request) {
     }
 
     // -----------------------------
-    // Local Fallback Logic
+    // Local fallback logic
     // -----------------------------
     const localFallback = () => {
-      // Ensure savingsRate and totalBalance exist
-      const savingsRate = typeof data.savingsRate === "number" ? data.savingsRate : 0;
-      const totalBalance = typeof data.totalBalance === "number" ? data.totalBalance : 0;
+      const savingsRateValue = Number(data.savingsRate) || 67;
+      const totalBalance = Number(data.totalBalance);
+      const transactions: any[] = Array.isArray(data.transactions) ? data.transactions : [];
 
-      // Biggest / largest / most spending
-      if (lowerMessage.includes("biggest") || lowerMessage.includes("largest") || lowerMessage.includes("most spending") || lowerMessage.includes("highest")) {
-        if (data.topCategories.length > 0) {
-          const top = data.topCategories[4]; // already sorted by largest abs(amount)
-          return `Your biggest expense category in the last 90 days is ${top.category} at $${top.amount.toLocaleString()}.`;
-        }
+      const normalize = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/gi, "");
+      const categoryMap: Record<string, string> = {
+        groceries: "Food & Dining",
+        grocery: "Food & Dining",
+        food: "Food & Dining",
+        dining: "Food & Dining",
+        entertainment: "Entertainment",
+        transport: "Transportation",
+        transportation: "Transportation",
+        gas: "Transportation",
+        rent: "Housing",
+        housing: "Housing",
+        internet: "Bills & Utilities",
+        bills: "Bills & Utilities",
+        utilities: "Bills & Utilities",
+        health: "Health & Fitness",
+        gym: "Health & Fitness",
+      };
+
+      // Biggest expense
+      if (/biggest|largest|most spending|highest/.test(lowerMessage)) {
+        const top = data.topCategories?.[4];
+        if (top) return `Your biggest expense category in the last 90 days is ${top.category} at ${fmtUSD(top.amount)}.`;
         return "I don't have enough data to determine your biggest expense yet.";
       }
 
-      // Smallest / least / lowest / less spending
-      if (lowerMessage.includes("smallest") || lowerMessage.includes("least") || lowerMessage.includes("lowest") || lowerMessage.includes("less spending")) {
-        if (data.topCategories.length > 0) {
-          const min = data.topCategories.reduce((prev: any, curr: any) => {
-            return Math.abs(curr.amount) < Math.abs(prev.amount) ? curr : prev;
-          }, data.topCategories[0]);
-          return `Your smallest expense category in the last 90 days is ${min.category} at $${min.amount.toLocaleString()}.`;
-        }
+      // Smallest expense
+      if (/smallest|least|lowest|less spending/.test(lowerMessage)) {
+        const min = data.topCategories?.reduce((prev: any, curr: any) =>
+          Math.abs(curr.amount) < Math.abs(prev.amount) ? curr : prev
+        , data.topCategories[0]);
+        if (min) return `Your smallest expense category in the last 90 days is ${min.category} at ${fmtUSD(min.amount)}.`;
         return "I don't have enough data to determine your smallest expense yet.";
       }
 
+      // Spent on category
+      if (/spent on|spend on/.test(lowerMessage)) {
+        const match = lowerMessage.match(/(?:spent|spend) on (.+)/i);
+        if (!match || !match[1]) return "Please specify a category to check spending.";
 
-      // Spent on and Spend on logic 
+        let requested = match[1].replace(/\b(last week|last month|recently|this month|this week)\b/gi, "").replace(/[?.,!]/g, "").trim();
+        if (!requested) return "Please specify a category.";
 
-        if (lowerMessage.includes("spent on") || lowerMessage.includes("spend on")) {
-  if (!data?.transactions || data.transactions.length === 0) {
-    return "No transaction data available to check spending.";
-  }
+        const mapped = categoryMap[requested.toLowerCase()] ?? requested;
+        const normRequested = normalize(mapped);
 
-  // Extract category text from the message
-  const match = lowerMessage.match(/(?:spent|spend) on (.+)/i);
-  if (!match || !match[1]) return "Please specify a category to check spending.";
+        const filtered = transactions.filter(t => t.type === "expense" && t.category && normalize(t.category) === normRequested);
+        if (!filtered.length) return `No spending found for ${requested}.`;
 
-  let inputCategory = match[1].trim().toLowerCase();
-
-  // Map common synonyms to actual categories
-  const categoryMap: Record<string, string> = {
-    "groceries": "Food & Dining",
-    "food": "Food & Dining",
-    "dining": "Food & Dining",
-    "entertainment": "Entertainment",
-    "transportation": "Transportation",
-    "rent": "Housing",
-    "housing": "Housing",
-    "internet": "Bills & Utilities",
-    "bills": "Bills & Utilities",
-    "health": "Health & Fitness",
-    "gym": "Health & Fitness"
-  };
-
-  if (categoryMap[inputCategory]) {
-    inputCategory = categoryMap[inputCategory];
-  }
-
-  // Normalize for comparison (lowercase, remove special characters)
-  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/gi, "");
-
-  const filtered = data.transactions.filter((t: { type: string; category: string; }) =>
-    t.type === "expense" &&
-    t.category &&
-    normalize(t.category) === normalize(inputCategory)
-  );
-
-  if (filtered.length === 0) {
-    return `No spending found for ${match[1].trim()}.`;
-  }
-
-  const totalSpent = filtered.reduce((sum: number, t: { amount: any; }) => sum + Math.abs(Number(t.amount)), 0);
-
-  return `You have spent a total of $${totalSpent.toLocaleString()} on ${match[1].trim()}.`;
-}
-
+        const totalSpent = filtered.reduce((sum, t) => sum + Math.abs(parseAmount(t.amount)), 0);
+        return `You have spent a total of ${fmtUSD(totalSpent)} on ${requested}.`;
+      }
 
       // Overbudget
-      if (lowerMessage.includes("overspending") || lowerMessage.includes("over budget")) {
-        const over = data.budgetStatus.filter((b: any) => b.spent > b.limit);
-        return over.length > 0
-          ? `You're over budget in ${over.length} categories: ${over.map((b: any) => b.category).join(", ")}. Consider adjusting your spending.`
+      if (/overspending|over budget|overbudget/.test(lowerMessage)) {
+        const over = data.budgetStatus?.filter((b: { spent: any; limit: any; }) => Number(b.spent) > Number(b.limit)) ?? [];
+        return over.length
+          ? `You're over budget in ${over.length} categories: ${over.map((b: { category: any; }) => b.category).join(", ")}. Consider adjusting your spending.`
           : "You are within all budget limits this month — great job!";
       }
 
       // Spending patterns
-      if (lowerMessage.includes("pattern") || lowerMessage.includes("spending pattern")) {
-        if (data.topCategories.length === 0) return "Add more transactions to analyze your spending pattern.";
+      if (/pattern|spending pattern|spending patterns/.test(lowerMessage)) {
+        if (!data.topCategories?.length) return "Add more transactions to analyze your spending pattern.";
         return "Your top spending categories in the last 90 days are: " +
-          data.topCategories.slice(0, 5).map((c: any) => `${c.category} ($${c.amount.toLocaleString()})`).join(", ") + ".";
+          data.topCategories.slice(0, 5).map((c: { category: any; amount: number; }) => `${c.category} (${fmtUSD(c.amount)})`).join(", ") + ".";
       }
 
-      // Budget / savings
-      if (lowerMessage.includes("budget") || lowerMessage.includes("spending")) {
-        return `You're saving ${savingsRate}% this month. ${
-          savingsRate < 20 ? "You're spending a bit high — consider reducing discretionary expenses." : "Great job staying on track!"
-        }`;
+      // Budget / savings status
+      if (/budget|spending/.test(lowerMessage)) {
+        return `You're saving ${savingsRateValue}% this period. ${savingsRateValue < 20 ? "You're spending a bit high — consider reducing discretionary expenses." : "Great job staying on track!"}`;
       }
-      if (lowerMessage.includes("save") || lowerMessage.includes("saving")) {
-        return `You're saving $${Math.abs(totalBalance)} this month (${savingsRate}%). Try automating transfers or applying the 50/30/20 rule to increase savings.`;
+
+      if (/save|saving/.test(lowerMessage)) {
+        return `You're saving ${fmtUSD(totalBalance)} this period (${savingsRateValue}%). Try automating transfers or applying the 50/30/20 rule to increase savings.`;
       }
 
       // Greetings
-      if (lowerMessage.includes("hi") || lowerMessage.includes("hello") || lowerMessage.includes("hey")) {
-        return `Hello! 👋 You're currently at a balance of $${totalBalance.toLocaleString()} with a savings rate of ${savingsRate}%. How can I help you today?`;
+      if (/hi|hello|hey/.test(lowerMessage)) {
+        return `Hello! 👋 You're currently at a balance of ${fmtUSD(totalBalance)} with a savings rate of ${savingsRateValue}%. How can I help you today?`;
       }
 
       // Default fallback
-      return `I'm here to help you understand your spending, budgeting, and savings. You're currently saving $${Math.abs(totalBalance)} this month (${savingsRate}%). What would you like to know?`;
+      return `I'm here to help you understand your spending, budgeting, and savings. You're currently saving ${fmtUSD(totalBalance)} this period (${savingsRateValue}%). What would you like to know?`;
     };
 
     // ---------------------------------------
-    // OpenAI Fallback
+    // OpenAI fallback
     // ---------------------------------------
     let response = "";
     try {
       const openaiResp = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
-          { role: "system", content: "You are a helpful AI financial assistant. Answer questions using the user's financial data." },
+          { role: "system", content: "You are MoneyMentor — short, factual financial assistant. Use only the provided financial_summary JSON." },
           { role: "user", content: JSON.stringify({ message, financialSummary: data }) }
         ],
         max_tokens: 300
       });
-      response = openaiResp.choices[0].message?.content ?? localFallback();
+      response = openaiResp.choices?.[0]?.message?.content?.trim() ?? localFallback();
     } catch (err: any) {
-      console.warn("OpenAI failed, using local fallback:", err.message);
+      console.warn("OpenAI failed, using local fallback:", err?.message ?? err);
       response = localFallback();
     }
 
-    return new Response(JSON.stringify({ response }), {
-      headers: { "Content-Type": "application/json" }
-    });
-
+    return new Response(JSON.stringify({ response }), { headers: { "Content-Type": "application/json" } });
   } catch (error) {
     console.error("Chat API error:", error);
     return new Response(JSON.stringify({ error: "Failed to process chat request" }), { status: 500 });
