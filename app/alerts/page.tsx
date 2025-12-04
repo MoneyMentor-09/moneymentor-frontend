@@ -460,14 +460,22 @@ export default function AlertsPage() {
                             Risk Score: {alert.risk_score}%
                           </div>
                         </div>
-                        {alert.transaction_id && (
+                        {(alert.suspicious_pattern_id || alert.transaction_id) && (
                           <div className="mt-2">
                             <Button variant="outline" size="sm" asChild>
-                              <Link
-                                href={`/transactions?highlight=${alert.transaction_id}`}
-                              >
-                                View Transaction
-                              </Link>
+                              {alert.suspicious_pattern_id ? (
+                                <Link
+                                  href={`/transactions?pattern=${encodeURIComponent(
+                                    alert.suspicious_pattern_id
+                                  )}`}
+                                >
+                                  View Transactions
+                                </Link>
+                              ) : (
+                                <Link href={`/transactions?highlight=${alert.transaction_id}`}>
+                                  View Transaction
+                                </Link>
+                              )}
                             </Button>
                           </div>
                         )}

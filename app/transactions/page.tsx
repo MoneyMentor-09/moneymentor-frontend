@@ -8,56 +8,77 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Upload, 
-  Edit, 
-  Trash2, 
+import {
+  Plus,
+  Search,
+  Filter,
+  Upload,
+  Edit,
+  Trash2,
   Download,
   Calendar,
   DollarSign,
   Tag,
-  Type
+  Type,
 } from "lucide-react"
 import { toast } from "sonner"
 import { UploadCSVDialog } from "@/components/upload-csv-dialog"
-import { UploadHistoryButton } from "@/components/transactions/UploadHistoryButton";
+import { UploadHistoryButton } from "@/components/transactions/UploadHistoryButton"
 import { useSearchParams } from "next/navigation"
-
+import {
+  analyzeSuspiciousTransactions,
+  type Transaction as SuspiciousTx,
+} from "@/lib/transactions/suspicious"
 
 interface Transaction {
   id: string
   date: string
   description: string
   category: string
-  type: 'income' | 'expense'
+  type: "income" | "expense"
   amount: number
   created_at: string
 }
 
 const CATEGORIES = [
-  'Food & Dining',
-  'Transportation',
-  'Shopping',
-  'Entertainment',
-  'Bills & Utilities',
-  'Healthcare',
-  'Education',
-  'Travel',
-  'Groceries',
-  'Gas',
-  'Rent/Mortgage',
-  'Insurance',
-  'Salary',
-  'Freelance',
-  'Investment',
-  'Other'
+  "Food & Dining",
+  "Transportation",
+  "Shopping",
+  "Entertainment",
+  "Bills & Utilities",
+  "Healthcare",
+  "Education",
+  "Travel",
+  "Groceries",
+  "Gas",
+  "Rent/Mortgage",
+  "Insurance",
+  "Salary",
+  "Freelance",
+  "Investment",
+  "Other",
 ]
 
 export default function TransactionsPage() {
@@ -70,18 +91,21 @@ export default function TransactionsPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
-  const searchParams = useSearchParams()
-  const [highlightId, setHighlightId] = useState<string | null>(null)
-  const [highlightedTransaction, setHighlightedTransaction] = useState<Transaction | null>(null)
-  const [isHighlightDialogOpen, setIsHighlightDialogOpen] = useState(false)
   const [form, setForm] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: new Date().toISOString().split("T")[0],
     description: "",
     category: "",
     type: "expense" as "income" | "expense",
-    amount: ""
+    amount: "",
   })
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>([])
+
+  // New: pattern/suspicious highlighting support
+  const searchParams = useSearchParams()
+  const [highlightIds, setHighlightIds] = useState<string[]>([])
+  const [highlightDialogOpen, setHighlightDialogOpen] = useState(false)
+  const [highlightMessage, setHighlightMessage] = useState<string | null>(null)
+  const [highlightTxs, setHighlightTxs] = useState<Transaction[]>([])
 
   useEffect(() => {
     fetchTransactions()
@@ -90,15 +114,17 @@ export default function TransactionsPage() {
   const fetchTransactions = async () => {
     try {
       const supabase = getSupabaseBrowserClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
       if (!user) return
 
       const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('date', { ascending: false })
+        .from("transactions")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("date", { ascending: false })
 
       if (error) throw error
       setTransactions(data || [])
@@ -111,37 +137,78 @@ export default function TransactionsPage() {
     }
   }
 
-   useEffect(() => {
-    const idFromUrl = searchParams.get("highlight")
-
-    if (!idFromUrl || transactions.length === 0) {
-      setHighlightId(null)
-      setHighlightedTransaction(null)
-      setIsHighlightDialogOpen(false)
+  // New: react to ?pattern= or ?highlight= in the URL
+  useEffect(() => {
+    if (!transactions.length) {
+      // nothing loaded yet
       return
     }
 
-    const match = transactions.find(t => t.id === idFromUrl)
-    if (match) {
-      setHighlightId(idFromUrl)
-      setHighlightedTransaction(match)
-      setIsHighlightDialogOpen(true)
-    } else {
-      // No matching transaction (maybe deleted)
-      setHighlightId(null)
-      setHighlightedTransaction(null)
-      setIsHighlightDialogOpen(false)
-    }
-  }, [searchParams, transactions])
+    const patternId = searchParams.get("pattern")
+    const singleId = searchParams.get("highlight")
 
+    if (!patternId && !singleId) {
+      setHighlightIds([])
+      setHighlightTxs([])
+      setHighlightMessage(null)
+      setHighlightDialogOpen(false)
+      return
+    }
+
+    if (patternId) {
+      // Re-run suspicious analysis to find the matching pattern
+      const suspicious = analyzeSuspiciousTransactions(
+        transactions as unknown as SuspiciousTx[],
+        {
+          highAmountThreshold: 1000,
+          smallAmountThreshold: 10,
+          manySmallCountThreshold: 5,
+        }
+      )
+
+      const match = suspicious.find((s) => s.id === patternId)
+      if (match) {
+        const ids = match.transactions.map((t) => t.id)
+        setHighlightIds(ids)
+
+        const txMap = new Map(transactions.map((t) => [t.id, t]))
+        const list = ids.map((id) => txMap.get(id)).filter(Boolean) as Transaction[]
+
+        setHighlightTxs(list)
+        setHighlightMessage(match.message)
+        setHighlightDialogOpen(true)
+      } else {
+        // pattern not found
+        setHighlightIds([])
+        setHighlightTxs([])
+        setHighlightMessage(null)
+        setHighlightDialogOpen(false)
+      }
+    } else if (singleId) {
+      // old behavior: a single highlighted transaction
+      setHighlightIds([singleId])
+      const tx = transactions.find((t) => t.id === singleId)
+      if (tx) {
+        setHighlightTxs([tx])
+        setHighlightMessage("Suspicious transaction")
+        setHighlightDialogOpen(true)
+      } else {
+        setHighlightTxs([])
+        setHighlightMessage(null)
+        setHighlightDialogOpen(false)
+      }
+    }
+  }, [transactions, searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     try {
       const supabase = getSupabaseBrowserClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
       if (!user) return
 
       const transactionData = {
@@ -150,32 +217,27 @@ export default function TransactionsPage() {
         description: form.description,
         category: form.category,
         type: form.type,
-        amount: parseFloat(form.amount)
+        amount: parseFloat(form.amount),
       }
 
       if (editingTransaction) {
-        const { error } = await supabase
-          .from('transactions')
-          .update(transactionData)
-          .eq('id', editingTransaction.id)
+        const { error } = await supabase.from("transactions").update(transactionData).eq("id", editingTransaction.id)
 
         if (error) throw error
         toast.success("Transaction updated successfully")
       } else {
-        const { error } = await supabase
-          .from('transactions')
-          .insert(transactionData)
+        const { error } = await supabase.from("transactions").insert(transactionData)
 
         if (error) throw error
         toast.success("Transaction added successfully")
       }
 
       setForm({
-        date: new Date().toISOString().split('T')[0],
+        date: new Date().toISOString().split("T")[0],
         description: "",
         category: "",
         type: "expense",
-        amount: ""
+        amount: "",
       })
       setEditingTransaction(null)
       setIsAddDialogOpen(false)
@@ -194,7 +256,7 @@ export default function TransactionsPage() {
       description: transaction.description,
       category: transaction.category,
       type: transaction.type,
-      amount: transaction.amount.toString()
+      amount: transaction.amount.toString(),
     })
     setIsEditDialogOpen(true)
   }
@@ -202,10 +264,7 @@ export default function TransactionsPage() {
   const handleDelete = async (id: string) => {
     try {
       const supabase = getSupabaseBrowserClient()
-      const { error } = await supabase
-        .from('transactions')
-        .delete()
-        .eq('id', id)
+      const { error } = await supabase.from("transactions").delete().eq("id", id)
 
       if (error) throw error
       toast.success("Transaction deleted successfully")
@@ -220,10 +279,7 @@ export default function TransactionsPage() {
     if (selectedTransactions.length === 0) return
     try {
       const supabase = getSupabaseBrowserClient()
-      const { error } = await supabase
-        .from('transactions')
-        .delete()
-        .in('id', selectedTransactions)
+      const { error } = await supabase.from("transactions").delete().in("id", selectedTransactions)
 
       if (error) throw error
       toast.success("Selected transactions deleted successfully")
@@ -238,13 +294,12 @@ export default function TransactionsPage() {
     if (transactions.length === 0) return
     try {
       const supabase = getSupabaseBrowserClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
       if (!user) return
 
-      const { error } = await supabase
-        .from('transactions')
-        .delete()
-        .eq('user_id', user.id)
+      const { error } = await supabase.from("transactions").delete().eq("user_id", user.id)
 
       if (error) throw error
       toast.success("All transactions deleted successfully")
@@ -257,38 +312,35 @@ export default function TransactionsPage() {
 
   const handleExport = () => {
     const csvContent = [
-      ['Date', 'Description', 'Category', 'Type', 'Amount'],
-      ...transactions.map(t => [
-        t.date,
-        t.description,
-        t.category,
-        t.type,
-        t.amount.toString()
-      ])
-    ].map(row => row.join(',')).join('\n')
+      ["Date", "Description", "Category", "Type", "Amount"],
+      ...transactions.map((t) => [t.date, t.description, t.category, t.type, t.amount.toString()]),
+    ]
+      .map((row) => row.join(","))
+      .join("\n")
 
-    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const blob = new Blob([csvContent], { type: "text/csv" })
     const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
+    const a = document.createElement("a")
     a.href = url
-    a.download = `transactions-${new Date().toISOString().split('T')[0]}.csv`
+    a.download = `transactions-${new Date().toISOString().split("T")[0]}.csv`
     a.click()
     window.URL.revokeObjectURL(url)
   }
 
-  const filteredTransactions = transactions.filter(transaction => {
-    const matchesSearch = transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         transaction.category.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredTransactions = transactions.filter((transaction) => {
+    const matchesSearch =
+      transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      transaction.category.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesType = filterType === "all" || transaction.type === filterType
     const matchesCategory = filterCategory === "all" || transaction.category === filterCategory
-    
+
     return matchesSearch && matchesType && matchesCategory
   })
 
   if (loading) {
     return (
       <DashboardLayout>
-          <div className="space-y-6">
+        <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold">Transactions</h1>
@@ -330,9 +382,7 @@ export default function TransactionsPage() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Add New Transaction</DialogTitle>
-                  <DialogDescription>
-                    Enter the details for your new transaction.
-                  </DialogDescription>
+                  <DialogDescription>Enter the details for your new transaction.</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -372,7 +422,10 @@ export default function TransactionsPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="type">Type</Label>
-                      <Select value={form.type} onValueChange={(value: "income" | "expense") => setForm({ ...form, type: value })}>
+                      <Select
+                        value={form.type}
+                        onValueChange={(value: "income" | "expense") => setForm({ ...form, type: value })}
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -465,7 +518,7 @@ export default function TransactionsPage() {
               <div className="space-y-2">
                 <Label>Results</Label>
                 <div className="flex items-center h-10 px-3 py-2 text-sm text-muted-foreground bg-muted rounded-md">
-                  {filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? 's' : ''}
+                  {filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? "s" : ""}
                 </div>
               </div>
             </div>
@@ -477,9 +530,7 @@ export default function TransactionsPage() {
           <CardHeader className="flex items-center justify-between">
             <div>
               <CardTitle>Transaction History</CardTitle>
-              <CardDescription>
-                View and manage all your financial transactions
-              </CardDescription>
+              <CardDescription>View and manage all your financial transactions</CardDescription>
             </div>
             {transactions.length > 0 && (
               <div className="flex gap-2">
@@ -494,7 +545,8 @@ export default function TransactionsPage() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Delete Selected Transactions</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Are you sure you want to delete {selectedTransactions.length} selected transaction{selectedTransactions.length !== 1 ? 's' : ''}? This action cannot be undone.
+                        Are you sure you want to delete {selectedTransactions.length} selected transaction
+                        {selectedTransactions.length !== 1 ? "s" : ""}? This action cannot be undone.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -508,7 +560,7 @@ export default function TransactionsPage() {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-                
+
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="destructive" disabled={transactions.length === 0}>
@@ -543,10 +595,9 @@ export default function TransactionsPage() {
                 <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No transactions found</h3>
                 <p className="text-muted-foreground mb-4">
-                  {transactions.length === 0 
+                  {transactions.length === 0
                     ? "Start by adding your first transaction or uploading a CSV file."
-                    : "Try adjusting your search or filter criteria."
-                  }
+                    : "Try adjusting your search or filter criteria."}
                 </p>
                 {transactions.length === 0 && (
                   <div className="flex gap-2 justify-center">
@@ -567,12 +618,12 @@ export default function TransactionsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>
-                        <input 
+                        <input
                           type="checkbox"
                           checked={selectedTransactions.length === transactions.length && transactions.length > 0}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              setSelectedTransactions(transactions.map(t => t.id))
+                              setSelectedTransactions(transactions.map((t) => t.id))
                             } else {
                               setSelectedTransactions([])
                             }
@@ -589,16 +640,23 @@ export default function TransactionsPage() {
                   </TableHeader>
                   <TableBody>
                     {filteredTransactions.map((transaction) => (
-                      <TableRow key={transaction.id} className={highlightId === transaction.id ? "bg-yellow-50" : ""}>
+                      <TableRow
+                        key={transaction.id}
+                        className={
+                          highlightIds.includes(transaction.id)
+                            ? "bg-yellow-50 border-l-4 border-l-yellow-500"
+                            : ""
+                        }
+                      >
                         <TableCell>
-                          <input 
+                          <input
                             type="checkbox"
                             checked={selectedTransactions.includes(transaction.id)}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setSelectedTransactions(prev => [...prev, transaction.id])
+                                setSelectedTransactions((prev) => [...prev, transaction.id])
                               } else {
-                                setSelectedTransactions(prev => prev.filter(id => id !== transaction.id))
+                                setSelectedTransactions((prev) => prev.filter((id) => id !== transaction.id))
                               }
                             }}
                           />
@@ -617,23 +675,24 @@ export default function TransactionsPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={transaction.type === 'income' ? 'default' : 'secondary'}>
+                          <Badge variant={transaction.type === "income" ? "default" : "secondary"}>
                             <Type className="h-3 w-3 mr-1" />
                             {transaction.type}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className={`font-medium ${transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                            {transaction.amount < 0 ? '-' : '+'}${Math.abs(transaction.amount).toLocaleString()}
+                          <span
+                            className={`font-medium ${
+                              transaction.type === "income" ? "text-green-600" : "text-red-600"
+                            }`}
+                          >
+                            {transaction.amount < 0 ? "-" : "+"}$
+                            {Math.abs(transaction.amount).toLocaleString()}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(transaction)}
-                            >
+                            <Button variant="ghost" size="sm" onClick={() => handleEdit(transaction)}>
                               <Edit className="h-4 w-4" />
                             </Button>
                             <AlertDialog>
@@ -676,9 +735,7 @@ export default function TransactionsPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Edit Transaction</DialogTitle>
-              <DialogDescription>
-                Update the details for this transaction.
-              </DialogDescription>
+              <DialogDescription>Update the details for this transaction.</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -718,7 +775,10 @@ export default function TransactionsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-type">Type</Label>
-                  <Select value={form.type} onValueChange={(value: "income" | "expense") => setForm({ ...form, type: value })}>
+                  <Select
+                    value={form.type}
+                    onValueChange={(value: "income" | "expense") => setForm({ ...form, type: value })}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -755,65 +815,56 @@ export default function TransactionsPage() {
         </Dialog>
 
         {/* Upload CSV Dialog */}
-        <UploadCSVDialog 
-          open={isUploadDialogOpen} 
-          onOpenChange={setIsUploadDialogOpen}
-          onSuccess={fetchTransactions}
-        />
+        <UploadCSVDialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen} onSuccess={fetchTransactions} />
       </div>
-              {/* Highlighted Transaction Dialog (from Alerts "View Transaction") */}
-        {highlightedTransaction && (
-          <Dialog open={isHighlightDialogOpen} onOpenChange={setIsHighlightDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Suspicious Transaction</DialogTitle>
-                <DialogDescription>
-                  This transaction was flagged from your alerts.
-                </DialogDescription>
-              </DialogHeader>
 
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="font-medium">Date</span>
-                  <span>{new Date(highlightedTransaction.date).toLocaleDateString()}</span>
+      {/* Suspicious transactions popup (pattern or single) */}
+      <Dialog open={highlightDialogOpen} onOpenChange={setHighlightDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Suspicious transactions</DialogTitle>
+            <DialogDescription>
+              {highlightMessage ?? "These transactions were flagged as suspicious for this alert."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 max-h-64 overflow-auto mt-2">
+            {highlightTxs.map((tx) => (
+              <div
+                key={tx.id}
+                className="flex items-center justify-between rounded border px-3 py-2 text-sm"
+              >
+                <div>
+                  <div className="font-medium">{tx.description}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {new Date(tx.date).toLocaleDateString()} • {tx.category} • {tx.type}
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Description</span>
-                  <span>{highlightedTransaction.description}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Category</span>
-                  <span>{highlightedTransaction.category}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Type</span>
-                  <span>{highlightedTransaction.type}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Amount</span>
-                  <span className={highlightedTransaction.type === "expense" ? "text-red-600" : "text-green-600"}>
-                    {highlightedTransaction.amount < 0 ? "-" : "+"}${Math.abs(highlightedTransaction.amount).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 mt-4">
-                <Button variant="outline" onClick={() => setIsHighlightDialogOpen(false)}>
-                  Close
-                </Button>
-                {/* Optional: jump to edit from here */}
-                <Button
-                  onClick={() => {
-                    setIsHighlightDialogOpen(false)
-                    handleEdit(highlightedTransaction)
-                  }}
+                <div
+                  className={
+                    tx.type === "income"
+                      ? "text-green-600 font-semibold"
+                      : "text-red-600 font-semibold"
+                  }
                 >
-                  Edit Transaction
-                </Button>
+                  {tx.type === "income" ? "+" : "-"}$
+                  {Math.abs(tx.amount).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </div>
               </div>
-            </DialogContent>
-          </Dialog>
-        )}
+            ))}
+            {highlightTxs.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No matching transactions found. They may have been deleted.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setHighlightDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   )
 }
