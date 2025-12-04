@@ -30,7 +30,11 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
-import { analyzeSuspiciousTransactions, SuspiciousAlert, Transaction as Tx } from "@/lib/transactions/suspicious"
+import {
+  analyzeSuspiciousTransactions,
+  SuspiciousAlert,
+  Transaction as Tx
+} from "@/lib/transactions/suspicious"
 
 interface Alert {
   id: string
@@ -73,7 +77,17 @@ export default function AlertsPage() {
       if (alertError) throw alertError
       setAlerts(alertData || [])
 
-      // 2) Load recent transactions for suspicious analysis (e.g., last 90 days)
+      // 2) Load dismissed suspicious patterns for this user
+      const { data: dismissedData, error: dismissedError } = await supabase
+        .from("dismissed_suspicious_alerts")
+        .select("pattern_id")
+        .eq("user_id", user.id)
+
+      if (dismissedError) throw dismissedError
+
+      setDismissedSuspiciousIds((dismissedData || []).map((d: { pattern_id: string }) => d.pattern_id))
+
+      // 3) Load recent transactions for suspicious analysis (e.g., last 90 days)
       const ninetyDaysAgo = new Date()
       ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
       const cutoff = ninetyDaysAgo.toISOString().split("T")[0] // 'YYYY-MM-DD'
@@ -89,7 +103,7 @@ export default function AlertsPage() {
 
       const txs = (txData || []) as Tx[]
 
-      // 3) Run suspicious analysis
+      // 4) Run suspicious analysis
       const suspicious = analyzeSuspiciousTransactions(txs, {
         highAmountThreshold: 1000,
         smallAmountThreshold: 10,
@@ -165,15 +179,41 @@ export default function AlertsPage() {
     }
   }
 
-  // Dismiss synthetic (suspicious) alerts from the UI
-  const dismissSuspiciousAlert = (alertId: string) => {
+  // Dismiss synthetic (suspicious) alerts and persist to DB
+  const dismissSuspiciousAlert = async (alertId: string) => {
     const rawId = alertId.startsWith("suspicious-")
       ? alertId.slice("suspicious-".length)
       : alertId
 
-    setDismissedSuspiciousIds(prev =>
-      prev.includes(rawId) ? prev : [...prev, rawId]
-    )
+    try {
+      const supabase = getSupabaseBrowserClient()
+      const {
+        data: { user }
+      } = await supabase.auth.getUser()
+
+      if (!user) return
+
+      const { error } = await supabase
+        .from("dismissed_suspicious_alerts")
+        .insert({
+          user_id: user.id,
+          pattern_id: rawId
+        })
+
+      // If unique constraint violation happens (already dismissed), we can ignore it
+      if (error && error.code !== "23505") {
+        throw error
+      }
+
+      setDismissedSuspiciousIds(prev =>
+        prev.includes(rawId) ? prev : [...prev, rawId]
+      )
+
+      toast.success("Suspicious alert dismissed")
+    } catch (error) {
+      toast.error("Failed to dismiss suspicious alert")
+      console.error(error)
+    }
   }
 
   const getAlertIcon = (type: string, riskScore: number) => {
@@ -244,7 +284,6 @@ export default function AlertsPage() {
         case "fraud":
           return alert.type === "fraud" || alert.risk_score > 70
         case "budget":
-          // keep this strictly to budget warnings
           return alert.type === "budget_warning"
         default:
           return true
@@ -256,7 +295,7 @@ export default function AlertsPage() {
         // if both same read status, newest first
         return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       }
-      return a.read ? 1 : -1 // a.read=true goes after unread
+      return a.read ? 1 : -1
     })
 
   const unreadCount = combinedAlerts.filter(alert => !alert.read).length
@@ -447,7 +486,7 @@ export default function AlertsPage() {
 
                         {/* Delete / Dismiss: DB alerts vs synthetic alerts */}
                         {alert.synthetic ? (
-                          // synthetic suspicious alert → just dismiss in UI
+                          // synthetic suspicious alert → just dismiss in UI + DB
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button variant="ghost" size="sm" title="Dismiss alert">
