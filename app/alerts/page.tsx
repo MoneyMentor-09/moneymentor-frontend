@@ -15,7 +15,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import {
   AlertTriangle,
@@ -25,59 +25,49 @@ import {
   Clock,
   TrendingUp,
   DollarSign,
-  MapPin,
-  CreditCard
+  CreditCard,
 } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
 import {
   analyzeSuspiciousTransactions,
-  SuspiciousAlert,
-  Transaction as Tx
+  Transaction as Tx,
 } from "@/lib/transactions/suspicious"
 
 interface Alert {
   id: string
+  user_id: string
   message: string
   risk_score: number
   timestamp: string
   read: boolean
   type: "fraud" | "unusual_spending" | "budget_warning" | "low_balance"
-  transaction_id?: string
-  synthetic?: boolean
+  transaction_id?: string | null
+  suspicious_pattern_id?: string | null
 }
+
+type DismissedRow = { pattern_id: string }
 
 export default function AlertsPage() {
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<"all" | "unread" | "fraud" | "budget">("all")
-  const [suspiciousAlerts, setSuspiciousAlerts] = useState<SuspiciousAlert[]>([])
-  const [dismissedSuspiciousIds, setDismissedSuspiciousIds] = useState<string[]>([])
 
   useEffect(() => {
     fetchAlerts()
   }, [])
 
   const fetchAlerts = async () => {
+    setLoading(true)
     try {
       const supabase = getSupabaseBrowserClient()
       const {
-        data: { user }
+        data: { user },
       } = await supabase.auth.getUser()
 
       if (!user) return
 
-      // 1) Load existing alerts from DB
-      const { data: alertData, error: alertError } = await supabase
-        .from("alerts")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("timestamp", { ascending: false })
-
-      if (alertError) throw alertError
-      setAlerts(alertData || [])
-
-      // 2) Load dismissed suspicious patterns for this user
+      // 1) Load dismissed suspicious patterns for this user
       const { data: dismissedData, error: dismissedError } = await supabase
         .from("dismissed_suspicious_alerts")
         .select("pattern_id")
@@ -85,12 +75,14 @@ export default function AlertsPage() {
 
       if (dismissedError) throw dismissedError
 
-      setDismissedSuspiciousIds((dismissedData || []).map((d: { pattern_id: string }) => d.pattern_id))
+      const dismissedSet = new Set(
+        (dismissedData || []).map((d: DismissedRow) => d.pattern_id),
+      )
 
-      // 3) Load recent transactions for suspicious analysis (e.g., last 90 days)
+      // 2) Load recent transactions (e.g., last 90 days)
       const ninetyDaysAgo = new Date()
       ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
-      const cutoff = ninetyDaysAgo.toISOString().split("T")[0] // 'YYYY-MM-DD'
+      const cutoff = ninetyDaysAgo.toISOString().split("T")[0] // YYYY-MM-DD
 
       const { data: txData, error: txError } = await supabase
         .from("transactions")
@@ -103,17 +95,55 @@ export default function AlertsPage() {
 
       const txs = (txData || []) as Tx[]
 
-      // 4) Run suspicious analysis
+      // 3) Run suspicious analysis
       const suspicious = analyzeSuspiciousTransactions(txs, {
         highAmountThreshold: 1000,
         smallAmountThreshold: 10,
-        manySmallCountThreshold: 5
+        manySmallCountThreshold: 5,
       })
 
-      setSuspiciousAlerts(suspicious)
+      // 4) Filter out patterns the user has dismissed
+      const toInsert = suspicious.filter((s) => !dismissedSet.has(s.id))
+
+      // 5) Upsert suspicious alerts into alerts table
+      if (toInsert.length > 0) {
+        const rows = toInsert.map((s) => {
+          const firstTx = s.transactions[0]
+          return {
+            user_id: user.id,
+            message: s.message,
+            risk_score: s.riskScore,
+            type: s.rule === "high-amount" ? "fraud" : "unusual_spending",
+            timestamp: firstTx?.date
+              ? new Date(firstTx.date).toISOString()
+              : new Date().toISOString(),
+            suspicious_pattern_id: s.id,
+            transaction_id: firstTx?.id ?? null,
+          }
+        })
+
+        const { error: upsertError } = await supabase
+          .from("alerts")
+          .upsert(rows, {
+            onConflict: "user_id,suspicious_pattern_id",
+          })
+
+        if (upsertError) throw upsertError
+      }
+
+      // 6) Finally, load all alerts from DB
+      const { data: alertData, error: alertError } = await supabase
+        .from("alerts")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("timestamp", { ascending: false })
+
+      if (alertError) throw alertError
+
+      setAlerts((alertData || []) as Alert[])
     } catch (error) {
-      toast.error("Failed to fetch alerts")
       console.error(error)
+      toast.error("Failed to fetch alerts")
     } finally {
       setLoading(false)
     }
@@ -129,7 +159,11 @@ export default function AlertsPage() {
 
       if (error) throw error
 
-      setAlerts(alerts.map(alert => (alert.id === alertId ? { ...alert, read: true } : alert)))
+      setAlerts((prev) =>
+        prev.map((alert) =>
+          alert.id === alertId ? { ...alert, read: true } : alert,
+        ),
+      )
     } catch (error) {
       toast.error("Failed to mark alert as read")
       console.error(error)
@@ -140,7 +174,7 @@ export default function AlertsPage() {
     try {
       const supabase = getSupabaseBrowserClient()
       const {
-        data: { user }
+        data: { user },
       } = await supabase.auth.getUser()
 
       if (!user) return
@@ -153,7 +187,7 @@ export default function AlertsPage() {
 
       if (error) throw error
 
-      setAlerts(alerts.map(alert => ({ ...alert, read: true })))
+      setAlerts((prev) => prev.map((alert) => ({ ...alert, read: true })))
       toast.success("All alerts marked as read")
     } catch (error) {
       toast.error("Failed to mark all alerts as read")
@@ -164,54 +198,30 @@ export default function AlertsPage() {
   const deleteAlert = async (alertId: string) => {
     try {
       const supabase = getSupabaseBrowserClient()
-      const { error } = await supabase
-        .from("alerts")
-        .delete()
-        .eq("id", alertId)
+
+      const alertToDelete = alerts.find((a) => a.id === alertId)
+
+      // If this alert came from a suspicious pattern, remember that dismissal
+      if (alertToDelete?.suspicious_pattern_id) {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        if (user) {
+          await supabase.from("dismissed_suspicious_alerts").upsert({
+            user_id: user.id,
+            pattern_id: alertToDelete.suspicious_pattern_id,
+          })
+        }
+      }
+
+      const { error } = await supabase.from("alerts").delete().eq("id", alertId)
 
       if (error) throw error
 
-      setAlerts(alerts.filter(alert => alert.id !== alertId))
+      setAlerts((prev) => prev.filter((alert) => alert.id !== alertId))
       toast.success("Alert deleted")
     } catch (error) {
       toast.error("Failed to delete alert")
-      console.error(error)
-    }
-  }
-
-  // Dismiss synthetic (suspicious) alerts and persist to DB
-  const dismissSuspiciousAlert = async (alertId: string) => {
-    const rawId = alertId.startsWith("suspicious-")
-      ? alertId.slice("suspicious-".length)
-      : alertId
-
-    try {
-      const supabase = getSupabaseBrowserClient()
-      const {
-        data: { user }
-      } = await supabase.auth.getUser()
-
-      if (!user) return
-
-      const { error } = await supabase
-        .from("dismissed_suspicious_alerts")
-        .insert({
-          user_id: user.id,
-          pattern_id: rawId
-        })
-
-      // If unique constraint violation happens (already dismissed), we can ignore it
-      if (error && error.code !== "23505") {
-        throw error
-      }
-
-      setDismissedSuspiciousIds(prev =>
-        prev.includes(rawId) ? prev : [...prev, rawId]
-      )
-
-      toast.success("Suspicious alert dismissed")
-    } catch (error) {
-      toast.error("Failed to dismiss suspicious alert")
       console.error(error)
     }
   }
@@ -251,33 +261,12 @@ export default function AlertsPage() {
     }
   }
 
-  // Map suspicious transaction patterns into alert-like objects for the UI,
-  // skipping any that have been dismissed.
-  const visibleSuspicious = suspiciousAlerts.filter(
-    s => !dismissedSuspiciousIds.includes(s.id)
-  )
+  // Everything now comes from DB
+  const unreadCount = alerts.filter((a) => !a.read).length
+  const highRiskCount = alerts.filter((a) => a.risk_score > 70).length
 
-  const suspiciousAsAlerts: Alert[] = visibleSuspicious.map(s => ({
-    id: `suspicious-${s.id}`,
-    message: s.message,
-    risk_score: s.riskScore,
-    // Use the date of the first transaction involved, or "now" as fallback
-    timestamp: s.transactions[0]?.date
-      ? new Date(s.transactions[0].date).toISOString()
-      : new Date().toISOString(),
-    read: false,
-    // classify them so they show up under "fraud"/"unusual spending"
-    type: s.rule === "high-amount" ? "fraud" : "unusual_spending",
-    transaction_id: s.transactions[0]?.id,
-    synthetic: true
-  }))
-
-  // Combined "view" of alerts: synthetic suspicious + real DB alerts
-  const combinedAlerts: Alert[] = [...suspiciousAsAlerts, ...alerts]
-
-  // Filter + sort alerts (DB + synthetic suspicious)
-  const filteredAlerts = combinedAlerts
-    .filter(alert => {
+  const filteredAlerts = alerts
+    .filter((alert) => {
       switch (filter) {
         case "unread":
           return !alert.read
@@ -292,14 +281,12 @@ export default function AlertsPage() {
     .sort((a, b) => {
       // unread first
       if (a.read === b.read) {
-        // if both same read status, newest first
-        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        return (
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        )
       }
       return a.read ? 1 : -1
     })
-
-  const unreadCount = combinedAlerts.filter(alert => !alert.read).length
-  const highRiskCount = combinedAlerts.filter(alert => alert.risk_score > 70).length
 
   if (loading) {
     return (
@@ -308,7 +295,9 @@ export default function AlertsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold">Alerts</h1>
-              <p className="text-muted-foreground">Security and spending notifications</p>
+              <p className="text-muted-foreground">
+                Security and spending notifications
+              </p>
             </div>
           </div>
           <div className="h-96 bg-muted rounded-lg animate-pulse" />
@@ -324,7 +313,9 @@ export default function AlertsPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold">Alerts</h1>
-            <p className="text-muted-foreground">Security and spending notifications</p>
+            <p className="text-muted-foreground">
+              Security and spending notifications
+            </p>
           </div>
           {unreadCount > 0 && (
             <Button variant="outline" onClick={markAllAsRead}>
@@ -338,12 +329,16 @@ export default function AlertsPage() {
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Unread Alerts</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Unread Alerts
+              </CardTitle>
               <AlertTriangle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{unreadCount}</div>
-              <p className="text-xs text-muted-foreground">Require your attention</p>
+              <p className="text-xs text-muted-foreground">
+                Require your attention
+              </p>
             </CardContent>
           </Card>
 
@@ -353,18 +348,24 @@ export default function AlertsPage() {
               <Shield className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">{highRiskCount}</div>
-              <p className="text-xs text-muted-foreground">Potential fraud detected</p>
+              <div className="text-2xl font-bold text-red-600">
+                {highRiskCount}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Potential fraud detected
+              </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Alerts</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Total Alerts
+              </CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{combinedAlerts.length}</div>
+              <div className="text-2xl font-bold">{alerts.length}</div>
               <p className="text-xs text-muted-foreground">All time alerts</p>
             </CardContent>
           </Card>
@@ -379,7 +380,7 @@ export default function AlertsPage() {
                 size="sm"
                 onClick={() => setFilter("all")}
               >
-                All ({combinedAlerts.length})
+                All ({alerts.length})
               </Button>
               <Button
                 variant={filter === "unread" ? "default" : "outline"}
@@ -400,7 +401,8 @@ export default function AlertsPage() {
                 size="sm"
                 onClick={() => setFilter("budget")}
               >
-                Budget ({alerts.filter(a => a.type === "budget_warning").length})
+                Budget (
+                {alerts.filter((a) => a.type === "budget_warning").length})
               </Button>
             </div>
           </CardContent>
@@ -423,12 +425,12 @@ export default function AlertsPage() {
           </Card>
         ) : (
           <div className="space-y-4">
-            {filteredAlerts.map(alert => (
+            {filteredAlerts.map((alert) => (
               <Card
                 key={alert.id}
                 className={`transition-all hover:shadow-md ${getAlertColor(
                   alert.type,
-                  alert.risk_score
+                  alert.risk_score,
                 )} ${!alert.read ? "border-l-4 border-l-primary" : ""}`}
               >
                 <CardContent className="pt-6">
@@ -461,7 +463,9 @@ export default function AlertsPage() {
                         {alert.transaction_id && (
                           <div className="mt-2">
                             <Button variant="outline" size="sm" asChild>
-                              <Link href={`/transactions?highlight=${alert.transaction_id}`}>
+                              <Link
+                                href={`/transactions?highlight=${alert.transaction_id}`}
+                              >
                                 View Transaction
                               </Link>
                             </Button>
@@ -472,8 +476,7 @@ export default function AlertsPage() {
                     <div className="flex items-center gap-2 ml-4">
                       {getAlertBadge(alert.type, alert.risk_score)}
                       <div className="flex items-center gap-1">
-                        {/* Mark-as-read only for real DB alerts */}
-                        {!alert.read && !alert.synthetic && (
+                        {!alert.read && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -483,62 +486,35 @@ export default function AlertsPage() {
                             <CheckCircle2 className="h-4 w-4" />
                           </Button>
                         )}
-
-                        {/* Delete / Dismiss: DB alerts vs synthetic alerts */}
-                        {alert.synthetic ? (
-                          // synthetic suspicious alert → just dismiss in UI + DB
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="sm" title="Dismiss alert">
-                                <XCircle className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Dismiss Suspicious Alert</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This will hide this suspicious alert from your alerts list. The underlying
-                                  transaction will NOT be deleted.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => dismissSuspiciousAlert(alert.id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  Dismiss
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        ) : (
-                          // real DB alert → delete from Supabase
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="sm" title="Delete alert">
-                                <XCircle className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Alert</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete this alert? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => deleteAlert(alert.id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              title="Delete alert"
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Alert</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this alert? This
+                                action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteAlert(alert.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
                   </div>
