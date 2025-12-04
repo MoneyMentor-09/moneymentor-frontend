@@ -409,7 +409,7 @@ export default function BudgetPage() {
               <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-2xl font-bold text-red-600">
                 ${totalSpent.toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground">
@@ -547,45 +547,45 @@ export default function BudgetPage() {
                   <CardContent className="space-y-4">
                     {/* Amounts */}
                     <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">
-                          Spent
-                        </span>
-                        <span className="font-medium">
-                          ${budget.spent.toLocaleString()}
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">
-                          Limit
-                        </span>
-                        <span className="font-medium">
-                          ${budget.amount.toLocaleString()}
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between border-t pt-2">
-                        <span className="text-sm font-medium">Remaining</span>
-
-                        <span
-                          className={`font-bold ${
-                            budget.spent > budget.amount
-                              ? "text-red-600"
-                              : "text-green-600"
-                          }`}
-                        >
-                          $
-                          {Math.abs(budget.amount - budget.spent).toLocaleString()}
-                        </span>
-                      </div>
-
-                      {budget.purpose && (
-                        <div className="text-sm text-muted-foreground pt-1 italic">
-                          Purpose: {budget.purpose}
-                        </div>
-                      )}
+                    {/* Category Name */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{budget.category}</span>
+                      <span className="text-sm text-black">
+                        ${budget.spent.toLocaleString()} / ${budget.amount.toLocaleString()}
+                      </span>
                     </div>
+
+                    {/* Progress Bar */}
+                    <div className="w-full h-2 bg-gray-200 rounded-full">
+                      <div
+                        className={`h-2 rounded-full ${-budget.spent > budget.amount ? 'bg-red-600' : 'bg-green-600'}`}
+                        style={{
+                          width: `${Math.min((-budget.spent / budget.amount) * 100, 100)}%`,
+                        }}
+                      ></div>
+                    </div>
+
+                    {/* Budget Details */}
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Spent</span>
+                      <span className="text-sm">${budget.spent.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Limit</span>
+                      <span className="text-sm">${budget.amount.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between border-t pt-2">
+                      <span className="text-sm">Remaining</span>
+                      <span className={`text-sm ${budget.spent > budget.amount ? 'text-red-600' : 'text-green-600'}`}>
+                        ${Math.abs(budget.amount - budget.spent).toLocaleString()}
+                      </span>
+                    </div>
+
+                    {budget.purpose && (
+                      <div className="text-sm text-muted-foreground pt-1 italic">Purpose: {budget.purpose}</div>
+                    )}
+                  </div>
+
                   </CardContent>
                 </Card>
               )

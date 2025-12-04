@@ -100,7 +100,7 @@ export default function ChatPage() {
           .filter((t: { type: string }) => t.type === 'expense')
           .reduce((sum: number, t: { amount: number }) => sum + (t.amount as number), 0)
 
-        const totalBalance = totalIncome - totalExpenses
+        const totalBalance = totalIncome + (totalExpenses)
 
         const categorySpending = transactions
           .filter((t: { type: string }) => t.type === 'expense')
@@ -205,8 +205,7 @@ export default function ChatPage() {
 
   const suggestedQuestions = [
     "What's my biggest expense this month?",
-    "How much did I spend on groceries last week?",
-    "Why is my security score low?",
+    "What's my smallest expense this month?",
     "Which category am I overspending on?",
     "Am I on track with my budget?",
     "What are my spending patterns?",

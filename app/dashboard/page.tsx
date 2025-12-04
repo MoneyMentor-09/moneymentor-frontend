@@ -448,13 +448,14 @@ export default function DashboardPage() {
                     data={lineChartData}
                     margin={{
                       top: 5,
-                      right: 20,
-                      left: -10,
+                      right: 10,
+                      left: 10,
                       bottom: 5,
                     }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
+
                     <YAxis
                       tickFormatter={(value) =>
                         `$${value.toLocaleString()}`
@@ -570,83 +571,59 @@ export default function DashboardPage() {
           </Card>
 
           {/* Budget Progress */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Budget Progress</CardTitle>
-                <CardDescription>
-                  Track your spending against budgets
-                </CardDescription>
-              </div>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/budget">Manage</Link>
-              </Button>
-            </CardHeader>
+ <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Budget Progress</CardTitle>
+            <CardDescription>Track your spending against budgets</CardDescription>
+          </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/budget">Manage</Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {budgets.length > 0 ? (
+              budgets.slice(0, 5).map((budget) => {
+                const percentage = (-budget.spent / budget.amount) * 100;
+                const isOverBudget = -budget.spent > budget.amount;
 
-            <CardContent>
-              <div className="space-y-4">
-                {budgets.length > 0 ? (
-                  budgets.slice(0, 5).map((budget) => {
-                    const percentage =
-                      (budget.spent / budget.amount) * 100;
-                    const isOverBudget =
-                      budget.spent > budget.amount;
-
-                    return (
-                      <div key={budget.id} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">
-                            {budget.category}
-                          </span>
-                          <span
-                            className={`text-sm ${
-                              isOverBudget
-                                ? "text-red-600"
-                                : "text-muted-foreground"
-                            }`}
-                          >
-                            ${budget.spent.toLocaleString()} / $
-                            {budget.amount.toLocaleString()}
-                          </span>
-                        </div>
-
-                        <div className="w-full bg-muted rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full transition-all ${
-                              isOverBudget
-                                ? "bg-red-500"
-                                : percentage > 80
-                                ? "bg-yellow-500"
-                                : "bg-green-500"
-                            }`}
-                            style={{
-                              width: `${Math.min(
-                                percentage,
-                                100
-                              )}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Target className="h-8 w-8 mx-auto mb-2" />
-                    <p className="text-sm">No budgets set up yet</p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-2"
-                      asChild
-                    >
-                      <Link href="/budget">Create Budget</Link>
-                    </Button>
+                return (
+                  <div key={budget.id} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{budget.category}</span>
+                      <span
+                        className={`text-sm ${
+                          isOverBudget ? 'text-red-600' : 'text-green-600'
+                        }`}
+                      >
+                        ${budget.spent.toLocaleString()} / ${budget.amount.toLocaleString()}
+                      </span>
+                    </div>
+                    {/* Optional: Add a progress bar */}
+                    <div className="w-full h-2 bg-gray-200 rounded-full">
+                      <div
+                        className={`h-2 rounded-full ${
+                          isOverBudget ? 'bg-red-600' : 'bg-green-600'
+                        }`}
+                        style={{ width: `${Math.min(percentage, 100)}%` }}
+                      ></div>
+                    </div>
                   </div>
-                )}
+                );
+              })
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Target className="h-8 w-8 mx-auto mb-2" />
+                <p className="text-sm">No budgets set up yet</p>
+                <Button variant="outline" size="sm" className="mt-2" asChild>
+                  <Link href="/budget">Create Budget</Link>
+                </Button>
               </div>
-            </CardContent>
-          </Card>
+            )}
+          </div>
+        </CardContent>
+      </Card>
         </div>
 
         {/* Fraud Summary */}

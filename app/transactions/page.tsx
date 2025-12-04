@@ -201,53 +201,65 @@ export default function TransactionsPage() {
   }, [transactions, searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  e.preventDefault()
+  
+  try {
+    const supabase = getSupabaseBrowserClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) return
 
-    try {
-      const supabase = getSupabaseBrowserClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) return
-
-      const transactionData = {
-        user_id: user.id,
-        date: form.date,
-        description: form.description,
-        category: form.category,
-        type: form.type,
-        amount: parseFloat(form.amount),
-      }
-
-      if (editingTransaction) {
-        const { error } = await supabase.from("transactions").update(transactionData).eq("id", editingTransaction.id)
-
-        if (error) throw error
-        toast.success("Transaction updated successfully")
-      } else {
-        const { error } = await supabase.from("transactions").insert(transactionData)
-
-        if (error) throw error
-        toast.success("Transaction added successfully")
-      }
-
-      setForm({
-        date: new Date().toISOString().split("T")[0],
-        description: "",
-        category: "",
-        type: "expense",
-        amount: "",
-      })
-      setEditingTransaction(null)
-      setIsAddDialogOpen(false)
-      setIsEditDialogOpen(false)
-      fetchTransactions()
-    } catch (error) {
-      toast.error("Failed to save transaction")
-      console.error(error)
+    // Ensure correct sign on amount
+    let amount = parseFloat(form.amount)
+    if (form.type === "expense") {
+      amount = -Math.abs(amount) // expenses are always negative
+    } else {
+      amount = Math.abs(amount) // income is always positive
     }
+
+    const transactionData = {
+      user_id: user.id,
+      date: form.date,
+      description: form.description,
+      category: form.category,
+      type: form.type,
+      amount: amount
+    }
+
+    if (editingTransaction) {
+      const { error } = await supabase
+        .from('transactions')
+        .update(transactionData)
+        .eq('id', editingTransaction.id)
+
+      if (error) throw error
+      toast.success("Transaction updated successfully")
+    } else {
+      const { error } = await supabase
+        .from('transactions')
+        .insert(transactionData)
+
+      if (error) throw error
+      toast.success("Transaction added successfully")
+    }
+
+    setForm({
+      date: new Date().toISOString().split('T')[0],
+      description: "",
+      category: "",
+      type: "expense",
+      amount: ""
+    })
+    setEditingTransaction(null)
+    setIsAddDialogOpen(false)
+    setIsEditDialogOpen(false)
+    fetchTransactions()
+  } catch (error) {
+    toast.error("Failed to save transaction")
+    console.error(error)
   }
+}
+
 
   const handleEdit = (transaction: Transaction) => {
     setEditingTransaction(transaction)

@@ -8,6 +8,9 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Eye, EyeOff } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
+
 
 export default function LoginPage() {
   const router = useRouter()
@@ -15,6 +18,8 @@ export default function LoginPage() {
   const [form, setForm] = useState({ email: "", phone: "", password: "" })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -86,18 +91,37 @@ export default function LoginPage() {
     }
   }
 
+  
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       <div className="w-full max-w-md relative z-10">
-        <div className="text-center mb-8">
-          <h1 className="font-serif text-4xl font-bold bg-gradient-to-r from-foreground via-primary to-foreground bg-clip-text text-transparent mb-2">
-            MoneyMentor
-          </h1>
-          <p className="text-muted-foreground">Welcome back</p>
-        </div>
+        <div className="relative mb-8 flex flex-col items-center">
+            {/* Back Button - fixed to far left */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="absolute right-200 top-0 flex items-center gap-2"
+              onClick={() => router.push("/")}
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+
+            {/* Title */}
+            <div className="text-center mt-2">
+              <h1 className="font-serif text-4xl font-bold bg-gradient-to-r from-foreground via-primary to-foreground bg-clip-text text-transparent mb-2">
+                MoneyMentor
+              </h1>
+              <p className="text-muted-foreground">Welcome back</p>
+            </div>
+          </div>
+
 
         <div className="bg-card/80 backdrop-blur-sm rounded-lg shadow-xl shadow-primary/10 p-8 border border-border">
           <h2 className="text-2xl font-semibold mb-6 text-center">Log In</h2>
+          
 
           {/* Google Login */}
           <Button
@@ -120,6 +144,9 @@ export default function LoginPage() {
             </div>
           </div>
 
+
+          
+
           {/* Email / Phone toggle */}
           <div className="flex gap-2 mb-4">
             <Button
@@ -139,6 +166,7 @@ export default function LoginPage() {
               Phone
             </Button>
           </div>
+
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {loginMethod === "email" ? (
@@ -163,15 +191,26 @@ export default function LoginPage() {
                       Forgot password?
                     </Link>
                   </div>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    value={form.password}
-                    onChange={handleChange}
-                    required
-                    disabled={isLoading}
-                  />
+               <div className="relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  value={form.password}
+                  onChange={handleChange}
+                  required
+                  disabled={isLoading}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
                 </div>
               </>
             ) : (
@@ -190,6 +229,7 @@ export default function LoginPage() {
                 <p className="text-xs text-muted-foreground">We'll send you a one-time code to verify your number</p>
               </div>
             )}
+            
 
             {error && <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">{error}</div>}
 
