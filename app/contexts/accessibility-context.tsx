@@ -69,9 +69,21 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
 
 export function useAccessibility() {
   const context = useContext(AccessibilityContext)
+
   if (context === undefined) {
-    throw new Error("useAccessibility must be used within an AccessibilityProvider")
+    // During server-side prerender (e.g. building /accessibility),
+    // the AccessibilityProvider wrapper is not in the tree yet.
+    // Return no-op defaults so the build doesn't crash; on the client
+    // the real provider will take over after hydration.
+    return {
+      colorScheme: "default" as ColorScheme,
+      setColorScheme: () => {},
+      isDarkMode: false,
+      setIsDarkMode: () => {},
+      toggleDarkMode: () => {},
+    }
   }
+
   return context
 }
 
