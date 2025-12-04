@@ -1,26 +1,26 @@
 "use client"
 
+import { useState } from "react"
 import { EyeIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useState } from "react"
 import { AccessibilityDrawer } from "./accessibility-drawer"
 
 export function AccessibilityButton() {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
 
   return (
     <>
       <Button
         variant="ghost"
-        className="w-full justify-start gap-2"
-        onClick={() => setIsDrawerOpen(true)}
+        size="icon"
+        className="relative"
+        onClick={() => setIsOpen(true)}
+        aria-label="Open accessibility settings"
       >
-        <EyeIcon className="size-4" />
-        <span>Accessibility</span>
+        <EyeIcon className="h-5 w-5" />
       </Button>
 
-      <AccessibilityDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
+      <AccessibilityDrawer isOpen={isOpen} onClose={() => setIsOpen(false)} />
     </>
   )
 }
-
