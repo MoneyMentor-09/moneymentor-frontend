@@ -6,10 +6,7 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
-    "start": "next start",
-    "test": "vitest",
-    "test:watch": "vitest --watch",
-    "test:coverage": "vitest run --coverage"
+    "start": "next start"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -72,12 +69,7 @@
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^13.0.0",
     "vaul": "latest",
-    "zod": "^3.25.76",
-    "vitest": "^latest",
-    "@testing-library/react": "^latest",
-    "@testing-library/jest-dom": "^latest",
-    "@testing-library/user-event": "^latest",
-    "jsdom": "^latest"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
