@@ -515,7 +515,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <div className="flex items-center gap-4 relative">
               
               {/* Notifications Button */}
-              <Button variant="ghost" size="icon" asChild>
+              <Button variant="ghost" size="icon" asChild className="relative">
                 <Link href="/alerts">
                   <Bell className="h-5 w-5" />
                   {unreadAlerts > 0 && (
