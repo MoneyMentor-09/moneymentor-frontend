@@ -6,6 +6,10 @@ import { usePathname, useRouter } from "next/navigation"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+
+//accessibility button import
+import { AccessibilityButton } from "@/components/ui/accessibility-button"
+
 import {
   LayoutDashboard,
   CreditCard,
@@ -528,6 +532,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   )}
                 </Link>
               </Button>
+
+              {/* Accessibility Button */}
+                <AccessibilityButton />
+
 
               {/* Theme Toggle Button (Implemented by Amrinder, moved by William) */}
               {mounted && (
